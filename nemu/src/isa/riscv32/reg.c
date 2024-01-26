@@ -27,7 +27,7 @@ void isa_reg_display() {
   printf("pc :0x%8x\n", cpu.pc);
   for(int i = 0; i < 32; i++)
   {
-    printf("%-3s:0x%8x\n", regs[i], cpu.gpr[i]);
+    printf("%-3s:0x%08x\n", regs[i], cpu.gpr[i]);
   }
 }
 
