@@ -63,6 +63,16 @@ static int cmd_si(char *args) {
   return 0;
 }
 
+static int cmd_info(char *args) {
+  if(strcmp(args,"r") == 0)
+  {
+    isa_reg_display();
+    return 0;
+  }
+  printf("命令info的参数输入错误，请重新输入\n");
+  return 0;
+}
+
 static int cmd_help(char *args);
 
 static struct {
@@ -74,6 +84,7 @@ static struct {
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   { "si", "Step into [N] commands", cmd_si },
+  { "info", "Print the state of program(register or watchpoint)", cmd_info},
 
   /* TODO: Add more commands */
 
