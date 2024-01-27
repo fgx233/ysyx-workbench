@@ -21,7 +21,7 @@
 #include <regex.h>
 
 enum {
-  TK_NOTYPE = 256, TK_EQ,
+  TK_NOTYPE = 256, TK_EQ,TK_DEC,
 
   /* TODO: Add more token types */
 
@@ -38,7 +38,13 @@ static struct rule {
 
   {" +", TK_NOTYPE},    // spaces
   {"\\+", '+'},         // plus
+  {"\\-", '-'},         // 减
+  {"\\*", '*'},         // 乘
+  {"\\/", '/'},         // 除
+  {"\\(", '('},         // 左括号
+  {"\\)", ')'},         // 右括号
   {"==", TK_EQ},        // equal
+  {"[1-9][0-9]*", TK_DEC}, //十进制整数
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -94,10 +100,20 @@ static bool make_token(char *e) {
          * of tokens, some extra actions should be performed.
          */
 
-        switch (rules[i].token_type) {
-          default: TODO();
+        if(rules[i].token_type == TK_NOTYPE)
+        {
+          break;//如果token是空格，跳过该token
         }
+        
+        tokens[nr_token].type = rules[i].token_type;//先将类型写入
 
+        switch (rules[i].token_type) {
+          case TK_DEC:
+                    strncpy(tokens[nr_token].str, substr_start, substr_len);
+                    tokens[nr_token].str[substr_len] = '\0';
+                    break;
+        }
+        nr_token++;
         break;
       }
     }
@@ -117,9 +133,9 @@ word_t expr(char *e, bool *success) {
     *success = false;
     return 0;
   }
-
+  return 0;
   /* TODO: Insert codes to evaluate the expression. */
   TODO();
 
-  return 0;
+  
 }
