@@ -76,6 +76,157 @@ typedef struct token {
 static Token tokens[32] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
+static bool check_parentheses(int p, int q, bool *legal)
+{
+  int i = 0;
+  if(tokens[p].type == '(' && tokens[q].type == ')')
+  {
+    for(int j = p + 1; j < q ; j++)
+    {
+      if(tokens[j].type == '(')
+      {
+        i = i + 1;
+      }
+
+      if(tokens[j].type == ')')
+      {
+        i = i - 1;
+      }
+
+      if(i < 0)
+      {
+        break;
+      }
+    }
+
+    if(i == 0)
+    {
+      *legal = true;
+      return true;
+    }
+    if(i > 0)
+    {
+      *legal = false;
+      return false;
+    }
+
+  }
+  i = 0;
+  
+  for(int k = p; k <= q ; k++)
+  {
+    if(tokens[k].type == '(')
+    {
+      i = i + 1;
+    }
+
+    if(tokens[k].type == ')')
+    {
+      i = i - 1;
+    }
+
+    if(i < 0)
+    {
+      *legal = false;
+      return false;
+    }
+  }
+
+  if(i == 0)
+  {
+    *legal = true;
+    return false;
+  }
+  else
+  {
+    *legal = false;
+    return false;
+  }
+  
+}
+
+static int prior_op(int op)
+{
+  switch (op)
+  {
+  case '+':return 1;
+  case '-':return 1;
+  case '*':return 2;
+  case '/':return 2;
+  default: return 3;
+  }
+}
+
+static int find_op(int p, int q)
+{
+  int op = p;
+  int op_prior = 2;
+  int cnt = 0;
+  for(int i = p; i <= q; i++)
+  {
+    if(tokens[i].type == '(')
+    {
+      cnt = cnt + 1;
+      continue;
+    }
+    if(tokens[i].type == ')')
+    {
+      cnt = cnt - 1;
+      continue;
+    }
+    if((prior_op(tokens[i].type) <= op_prior) && cnt == 0)
+    {
+      op = i;
+      op_prior = prior_op(tokens[i].type);
+    }
+  }
+
+  return op;
+}
+
+static uint32_t eval(int p, int q)
+{
+  bool rabbish;
+  if(p > q)
+  {
+    /* Bad expression */
+    Assert(0, "表达式求值错误");
+    return 0;
+  }
+  else if(p == q)
+  {
+    /* Single token.
+     * For now this token should be a number.
+     * Return the value of the number.
+     */
+    uint32_t value;
+    sscanf(tokens[p].str, "%u", &value);
+    return value;
+  }
+  else if(check_parentheses(p, q, &rabbish) == true)
+  {
+    /* The expression is surrounded by a matched pair of parentheses.
+     * If that is the case, just throw away the parentheses.
+     */
+    return eval(p + 1, q - 1);
+  }
+  else
+  {
+    int op = find_op(p, q);
+    uint32_t val1 = eval(p, op - 1);
+    uint32_t val2 = eval(op + 1, q);
+
+    switch (tokens[op].type)
+    {
+    case '+': return val1 + val2;
+    case '-': return val1 - val2;
+    case '*': return val1 * val2;
+    case '/': return val1 / val2;
+    default: assert(0);
+    }
+  }
+
+}
 static bool make_token(char *e) {
   int position = 0;
   int i;
@@ -133,6 +284,19 @@ word_t expr(char *e, bool *success) {
     *success = false;
     return 0;
   }
+  bool legal = false;
+  check_parentheses(0, nr_token - 1, &legal);
+  if (legal == true)
+  {
+    printf("表达式合法\n");
+  }
+  else
+  {
+    printf("表达式不合法\n");
+  }
+  printf("表达式的主运算符是%d\n", find_op(0, nr_token - 1));
+
+  printf("表达式的值为：%u\n", eval(0, nr_token - 1));
   return 0;
   /* TODO: Insert codes to evaluate the expression. */
   TODO();
