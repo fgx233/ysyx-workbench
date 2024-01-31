@@ -73,7 +73,7 @@ typedef struct token {
   char str[32];
 } Token;
 
-static Token tokens[32] __attribute__((used)) = {};
+static Token tokens[256] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 static bool check_parentheses(int p, int q, bool *legal)
@@ -289,17 +289,15 @@ word_t expr(char *e, bool *success) {
   if (legal == true)
   {
     printf("表达式合法\n");
+    *success = true;
+    return eval(0, nr_token - 1);
   }
   else
   {
     printf("表达式不合法\n");
+    *success = false;
+    return 0;
   }
-  printf("表达式的主运算符是%d\n", find_op(0, nr_token - 1));
-
-  printf("表达式的值为：%u\n", eval(0, nr_token - 1));
-  return 0;
-  /* TODO: Insert codes to evaluate the expression. */
-  TODO();
 
   
 }

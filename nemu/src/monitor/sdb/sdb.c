@@ -91,7 +91,8 @@ static int cmd_x(char *args){
 static int cmd_p(char *args){
 
   bool success = false;
-  expr(args, &success);
+  uint32_t result = expr(args, &success);
+  printf("表达式的值为：%u\n", result);
   return 0;
 }
 
