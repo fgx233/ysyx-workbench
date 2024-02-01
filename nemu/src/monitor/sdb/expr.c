@@ -20,8 +20,10 @@
  */
 #include <regex.h>
 
+word_t vaddr_read(vaddr_t addr, int len);
+
 enum {
-  TK_NOTYPE = 256, TK_EQ,TK_DEC,
+  TK_NOTYPE = 256, TK_EQ, TK_DEC, TK_HEX, TK_NEQ, TK_AND, TK_REG, TK_DEF,
 
   /* TODO: Add more token types */
 
@@ -44,7 +46,12 @@ static struct rule {
   {"\\(", '('},         // 左括号
   {"\\)", ')'},         // 右括号
   {"==", TK_EQ},        // equal
+  {"!=", TK_NEQ},       // 不等
+  {"&&", TK_AND},       // 逻辑与
+  {"0x[1-9A-Fa-f][0-9A-Fa-f]*", TK_HEX},//十六进制整数
   {"[1-9][0-9]*", TK_DEC}, //十进制整数
+  {"\\$(pc|\\$0|ra|sp|gp|tp|t0|t1|t2|s0|s1|a0|a1|a2|a3|a4|a5|a6|a7|s2|s3|s4|s5|s6|s7|s8|s9|s10|s11|t3|t4|t5|t6)", TK_REG},//寄存器
+
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -149,18 +156,22 @@ static int prior_op(int op)
 {
   switch (op)
   {
-  case '+':return 1;
-  case '-':return 1;
-  case '*':return 2;
-  case '/':return 2;
-  default: return 3;
+    case TK_AND:return 1;
+    case TK_EQ: return 2;
+    case TK_NEQ:return 2;
+    case '+':   return 3;
+    case '-':   return 3;
+    case '*':   return 4;
+    case '/':   return 4;
+    case TK_DEF:return 5;
+  default: return 6;
   }
 }
 
 static int find_op(int p, int q)
 {
   int op = p;
-  int op_prior = 2;
+  int op_prior = 6;
   int cnt = 0;
   for(int i = p; i <= q; i++)
   {
@@ -200,8 +211,32 @@ static uint32_t eval(int p, int q)
      * Return the value of the number.
      */
     uint32_t value;
-    sscanf(tokens[p].str, "%u", &value);
-    return value;
+    if(tokens[p].type == TK_DEC)
+    {
+      sscanf(tokens[p].str, "%u", &value);
+      return value;
+    }
+    
+    if(tokens[p].type == TK_HEX)
+    {
+      sscanf(tokens[p].str, "%x", &value);
+      return value;
+    }
+
+    if(tokens[p].type == TK_REG)
+    {
+      bool success = false;
+      value = isa_reg_str2val(tokens[p].str, &success);
+      if(success == false)
+      {
+        Assert(0, "寄存器输入错误");
+      }
+      else
+      {
+        return value;
+      }
+    }
+    Assert(0, "求值错误");
   }
   else if(check_parentheses(p, q, &rabbish) == true)
   {
@@ -213,7 +248,9 @@ static uint32_t eval(int p, int q)
   else
   {
     int op = find_op(p, q);
-    uint32_t val1 = eval(p, op - 1);
+    uint32_t val1 = 0;
+    if(tokens[op].type != TK_DEF)
+      val1 = eval(p, op - 1);
     uint32_t val2 = eval(op + 1, q);
 
     switch (tokens[op].type)
@@ -222,6 +259,10 @@ static uint32_t eval(int p, int q)
     case '-': return val1 - val2;
     case '*': return val1 * val2;
     case '/': return val1 / val2;
+    case TK_EQ:return (val1 == val2);
+    case TK_NEQ:return (val1 != val2);
+    case TK_AND:return (val1 && val2);
+    case TK_DEF:return vaddr_read(val2, 4);
     default: assert(0);
     }
   }
@@ -263,6 +304,13 @@ static bool make_token(char *e) {
                     strncpy(tokens[nr_token].str, substr_start, substr_len);
                     tokens[nr_token].str[substr_len] = '\0';
                     break;
+          case TK_HEX:
+                    strncpy(tokens[nr_token].str, substr_start, substr_len);
+                    tokens[nr_token].str[substr_len] = '\0';
+                    break;
+          case TK_REG:
+                    strncpy(tokens[nr_token].str, substr_start + 1, substr_len - 1);
+                    tokens[nr_token].str[substr_len - 1] = '\0';
         }
         nr_token++;
         break;
@@ -284,6 +332,27 @@ word_t expr(char *e, bool *success) {
     *success = false;
     return 0;
   }
+  
+  for(int i = 0; i < nr_token; i++)
+  {
+    if(tokens[i].type == '*')
+    {
+      if(i == 0)
+      {
+        tokens[i].type = TK_DEF;
+      }
+      else if(tokens[i-1].type == TK_DEC || tokens[i-1].type == TK_HEX || tokens[i-1].type == ')')
+      {
+        tokens[i].type = '*';
+      }
+      else
+      {
+        tokens[i].type = TK_DEF;
+      }
+    }
+    
+  }
+
   bool legal = false;
   check_parentheses(0, nr_token - 1, &legal);
   if (legal == true)
