@@ -24,6 +24,9 @@ static int is_batch_mode = false;
 
 void init_regex();
 void init_wp_pool();
+void new_wp(char *args);
+void free_wp(int NO);
+void print_wp();
 
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 static char* rl_gets() {
@@ -71,6 +74,11 @@ static int cmd_info(char *args) {
     isa_reg_display();
     return 0;
   }
+  if(strcmp(args,"w") == 0)
+  {
+    print_wp();
+    return 0;
+  }
   printf("命令info的参数输入错误，请重新输入\n");
   return 0;
 }
@@ -101,6 +109,19 @@ static int cmd_p(char *args){
   return 0;
 }
 
+static int cmd_w(char *args){
+
+  new_wp(args);
+  return 0;
+}
+
+static int cmd_d(char *args){
+  int NO = 0;
+  sscanf(args, "%d", &NO);
+  free_wp(NO);
+  return 0;
+}
+
 static int cmd_help(char *args);
 
 static struct {
@@ -115,6 +136,8 @@ static struct {
   { "info", "Print the state of program(register or watchpoint)", cmd_info},
   { "x", "Solve EXPR and print memory", cmd_x},
   { "p", "Solve EXPR", cmd_p},
+  { "w", "Add a new watchpoint", cmd_w},
+  { "d", "Remove a watchpoint", cmd_d},
 
   /* TODO: Add more commands */
 
