@@ -77,11 +77,15 @@ static int cmd_info(char *args) {
 static int cmd_x(char *args){
 
   int N_x = 1;
-  uint32_t addr_x = 0;
-  sscanf(args, "%d %x", &N_x, &addr_x);
+  uint32_t result = 0;
+  bool success = false;
+  char addr_x[256] = {0};
+
+  sscanf(args, "%d %[^\n]", &N_x, addr_x);
+  result = expr(addr_x, &success);
   for(int i = 0; i < N_x; i++)
   {
-    printf("0x%08x: 0x%08x\n",addr_x + 4*i , paddr_read(addr_x + 4*i, 4));
+    printf("0x%08x: 0x%08x\n",result + 4*i , paddr_read(result + 4*i, 4));
   }
   
 
