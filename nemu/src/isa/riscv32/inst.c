@@ -18,6 +18,7 @@
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
 
+void inst_trace(vaddr_t pc, uint32_t inst);
 #define R(i) gpr(i)
 #define Mr vaddr_read
 #define Mw vaddr_write
@@ -141,5 +142,6 @@ static int decode_exec(Decode *s) {
 
 int isa_exec_once(Decode *s) {
   s->isa.inst.val = inst_fetch(&s->snpc, 4);
+  IFDEF(CONFIG_ITRACE, inst_trace(s->pc, s->isa.inst.val));
   return decode_exec(s);
 }
