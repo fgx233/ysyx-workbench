@@ -49,3 +49,13 @@ void inst_print()
 
 
 }
+
+void mtrace_read(paddr_t addr, int len)
+{
+    printf("memory  read at:" FMT_PADDR " len:%d\n", addr, len);
+}
+
+void mtrace_write(paddr_t addr, int len, word_t data)
+{
+    printf("memory write at:" FMT_PADDR " len:%d data:" FMT_WORD, addr, len, data);
+}
