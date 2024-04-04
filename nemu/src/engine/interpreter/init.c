@@ -15,6 +15,7 @@
 
 #include <cpu/cpu.h>
 
+void free_elf(void);
 void sdb_mainloop();
 
 void engine_start() {
@@ -24,4 +25,5 @@ void engine_start() {
   /* Receive commands from user. */
   sdb_mainloop();
 #endif
+  free_elf();
 }

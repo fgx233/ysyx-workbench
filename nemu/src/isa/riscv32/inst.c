@@ -18,6 +18,9 @@
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
 
+void ftrace_call(paddr_t pc, paddr_t dest);
+void ftrace_return(paddr_t pc);
+
 void inst_trace(vaddr_t pc, uint32_t inst);
 #define R(i) gpr(i)
 #define Mr vaddr_read
@@ -37,11 +40,20 @@ enum {
 //#define immB() do { *imm = SEXT(BITS(i, 31, 31) << 12 | BITS(i, 7, 7) << 11 | BITS(i, 30, 25) << 5 | BITS(i, 11, 8) << 1 , 13); } while(0)
 #define immB() do { *imm = SEXT(BITS(i, 31, 31), 1) << 12 | BITS(i, 7, 7) << 11 | BITS(i, 30, 25) << 5 | BITS(i, 11, 8) << 1; } while(0)
 
+static int rs1_ftrace = 0;
+static int rs2_ftrace = 0;
+static int rd_ftrace  = 0;
+
 static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
   uint32_t i = s->isa.inst.val;
   int rs1 = BITS(i, 19, 15);
   int rs2 = BITS(i, 24, 20);
   *rd     = BITS(i, 11, 7);
+
+  rs1_ftrace = rs1;
+  rs2_ftrace = rs2;
+  rd_ftrace  = *rd;
+
   switch (type) {
     case TYPE_I: src1R();          immI(); break;
     case TYPE_U:                   immU(); break;
@@ -70,8 +82,21 @@ static int decode_exec(Decode *s) {
 
   //dummy
   INSTPAT("??????? ????? ????? 000 ????? 00100 11", addi   , I, R(rd) = src1 + imm);
-  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, R(rd) = s->pc + 4; s->dnpc = s->pc + imm);
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, R(rd) = s->pc + 4; s->dnpc = (src1 + imm) & (~1));
+  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, R(rd) = s->pc + 4; s->dnpc = s->pc + imm; 
+                                                                if(rd_ftrace == 1 || rd_ftrace == 5)
+                                                                ftrace_call(s->pc, s->dnpc));
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, R(rd) = s->pc + 4; s->dnpc = (src1 + imm) & (~1); 
+                                                                if((rd_ftrace != 1 && rd_ftrace != 5) && (rs1_ftrace == 1 || rs1_ftrace == 5))
+                                                                  ftrace_return(s->pc);
+                                                                else if((rd_ftrace == 1 || rd_ftrace == 5) && (rs1_ftrace != 1 && rs1_ftrace != 5))
+                                                                  ftrace_call(s->pc, s->dnpc);
+                                                                else if((rd_ftrace == 1 || rd_ftrace == 5) && (rs1_ftrace == 1 || rs1_ftrace == 5) && (rd_ftrace == rs1_ftrace))
+                                                                  ftrace_call(s->pc, s->dnpc);
+                                                                else if((rd_ftrace == 1 || rd_ftrace == 5) && (rs1_ftrace == 1 || rs1_ftrace == 5) && (rd_ftrace != rs1_ftrace))
+                                                                {
+                                                                  ftrace_return(s->pc);
+                                                                  ftrace_call(s->pc, s->dnpc);
+                                                                });
   INSTPAT("??????? ????? ????? 010 ????? 01000 11", sw     , S, Mw(src1 + imm, 4, src2));
 
   //add
