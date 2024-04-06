@@ -25,7 +25,7 @@ static char* strtab;            //字符串节指针
 static func_info * func_tab;    //函数信息执政
 static itrace_node iringbuf[BUFF_NUMS] = {};
 static int depth = 0;           //调用深度
-
+static bool ftrace_enable = false;//ftrace是否打开
 static FILE *ftrace_log;
 
 static int func_nums = 0;
@@ -80,17 +80,23 @@ void mtrace_write(paddr_t addr, int len, word_t data)
     printf("memory write at:" FMT_PADDR " len:%d data:" FMT_WORD, addr, len, data);
 }
 
-void init_elf(const char *elf_file)
+void init_elf(const char *elf_file, const char *f_log)
 {
 
-    ftrace_log = fopen("/home/fgx/Desktop/ysyx-workbench/am-kernels/tests/cpu-tests/ftrace.log", "w");//funtion trace记录文件
+    ftrace_log = fopen(f_log, "w");//funtion trace记录文件
     Assert(ftrace_log, "ftrace日志文件创建失败");
 
 
 
     FILE *elf_fp = fopen(elf_file, "rb");//读取elf文件
-    Assert(elf_fp, "elf文件读取失败");
+    if(elf_fp == NULL)
+    {
+        ftrace_enable = false;
+        printf("当前无elf文件输入或elf文件打开失败\n");
+        return;
+    }
 
+    ftrace_enable = true;
 
     Elf32_Ehdr elf_head;
     if(fread(&elf_head, sizeof(Elf32_Ehdr), 1, elf_fp) != 1)//读取elf头
@@ -185,6 +191,8 @@ static int search_symbol(paddr_t pc)
 
 void ftrace_call(paddr_t pc, paddr_t dest)
 {
+    if(ftrace_enable == false)
+        return;
     depth++;
     int i = search_symbol(dest);
     fprintf(ftrace_log, FMT_PADDR ":%*s call [%s@" FMT_PADDR "]\n", pc, depth*2, " ", i >= 0? func_tab[i].name : "???", dest);
@@ -193,6 +201,8 @@ void ftrace_call(paddr_t pc, paddr_t dest)
 
 void ftrace_return(paddr_t pc)
 {
+    if(ftrace_enable == false)
+        return;
     int i = search_symbol(pc);
     fprintf(ftrace_log, FMT_PADDR ":%*s ret [%s]\n", pc, depth*2, " ", i >= 0? func_tab[i].name : "???");
     fflush(ftrace_log);
@@ -201,9 +211,11 @@ void ftrace_return(paddr_t pc)
 
 void free_elf(void)
 {
+    fclose(ftrace_log);
+    if(ftrace_enable == false)
+        return;
     free(section_head);
     free(symtab);
     free(strtab);
     free(func_tab);
-    fclose(ftrace_log);
 }

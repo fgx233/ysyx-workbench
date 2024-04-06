@@ -25,5 +25,5 @@ void engine_start() {
   /* Receive commands from user. */
   sdb_mainloop();
 #endif
-  free_elf();
+  IFDEF(CONFIG_FTRACE,free_elf());
 }
