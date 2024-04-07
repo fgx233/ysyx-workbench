@@ -5,6 +5,8 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
+#define PRINT_MAX 1024
+
 void itoa(int value, char *string)
 {
   int i = 0;
@@ -26,7 +28,20 @@ void itoa(int value, char *string)
 }
 
 int printf(const char *fmt, ...) {
-  panic("Not implemented");
+  char out[PRINT_MAX] = {};
+  
+  va_list ap;
+  int i = 0;
+  va_start(ap, fmt);
+  i = vsprintf(out, fmt, ap);
+  va_end(ap);
+  
+  for(const char *p = out; *p; p++)
+  {
+    putch(*p);
+  }
+
+  return i;
 }
 
 int vsprintf(char *out, const char *fmt, va_list ap) {
