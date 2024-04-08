@@ -101,7 +101,7 @@ void assert_fail_msg() {
   isa_reg_display();
   statistic();
 
-  inst_print();
+  IFDEF(CONFIG_ITRACE,inst_print());
 }
 
 /* Simulate how the CPU works. */
@@ -134,6 +134,8 @@ void cpu_exec(uint64_t n) {
     case NEMU_QUIT: statistic();
   }
 
+  #ifdef CONFIG_ITRACE
   if(nemu_state.halt_ret != 0)
     inst_print();
+  #endif
 }

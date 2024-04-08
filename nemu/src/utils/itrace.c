@@ -61,7 +61,7 @@ void inst_print()
 
         memset(p, ' ', 1);
         p += 1;
-        disassemble(p, buf + sizeof(buf) - p, iringbuf[j].pc, (uint8_t *)&iringbuf[j].inst, 4);
+        IFDEF(CONFIG_ITRACE, disassemble(p, buf + sizeof(buf) - p, iringbuf[j].pc, (uint8_t *)&iringbuf[j].inst, 4));
 
         puts(buf);
         j++;
