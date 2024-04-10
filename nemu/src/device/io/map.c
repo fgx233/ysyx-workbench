@@ -20,6 +20,9 @@
 
 #define IO_SPACE_MAX (2 * 1024 * 1024)
 
+void dtrace_read(paddr_t addr, int len, IOMap *map, word_t data);
+void dtrace_write(paddr_t addr, int len, IOMap *map, word_t data);
+
 static uint8_t *io_space = NULL;
 static uint8_t *p_space = NULL;
 
@@ -58,6 +61,7 @@ word_t map_read(paddr_t addr, int len, IOMap *map) {
   paddr_t offset = addr - map->low;
   invoke_callback(map->callback, offset, len, false); // prepare data to read
   word_t ret = host_read(map->space + offset, len);
+  IFDEF(CONFIG_DTRACE, dtrace_read(addr, len, map, ret));
   return ret;
 }
 
@@ -65,6 +69,7 @@ void map_write(paddr_t addr, int len, word_t data, IOMap *map) {
   assert(len >= 1 && len <= 8);
   check_bound(map, addr);
   paddr_t offset = addr - map->low;
+  IFDEF(CONFIG_DTRACE, dtrace_write(addr, len, map, data));
   host_write(map->space + offset, len, data);
   invoke_callback(map->callback, offset, len, true);
 }

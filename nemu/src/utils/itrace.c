@@ -1,6 +1,6 @@
 #include<common.h>
 #include<elf.h>
-
+#include <device/map.h>
 #define BUFF_NUMS 32
 
 
@@ -218,4 +218,14 @@ void free_elf(void)
     free(symtab);
     free(strtab);
     free(func_tab);
+}
+
+void dtrace_read(paddr_t addr, int len, IOMap *map, word_t data)
+{
+    printf("%-10s  read: len->%d, addr->" FMT_PADDR " data->%d\n", map->name, len, addr, data);
+}
+
+void dtrace_write(paddr_t addr, int len, IOMap *map, word_t data)
+{
+    printf("%-10s write: len->%d, addr->" FMT_PADDR " data->%d\n", map->name, len, addr, data);
 }

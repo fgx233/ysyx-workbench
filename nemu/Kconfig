@@ -157,6 +157,10 @@ config FTRACE
   bool "Enable ftrace"
   default n
 
+config DTRACE
+  bool "Enable dtrace"
+  default n
+
 config ITRACE_COND
   depends on ITRACE
   string "Only trace instructions when the condition is true"
