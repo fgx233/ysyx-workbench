@@ -54,6 +54,24 @@ static int cmd_q(char *args) {
 
 static int cmd_help(char *args);
 
+static int cmd_si(char *args) {
+  if (args == NULL) {       //若没有参数，默认执行一条指令
+    cpu_exec(1);
+    return 0;
+  }
+
+  int n = 0;
+  int num = sscanf(args, "%d", &n);
+
+  if (num != 1) {
+    printf("参数：“%s”不合法。\n", args);
+    return 0;
+  }
+
+  cpu_exec(n);
+  return 0;
+}
+
 static struct {
   const char *name;
   const char *description;
@@ -62,6 +80,7 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
+  { "si", "execute N steps, default: N = 1", cmd_si },
 
   /* TODO: Add more commands */
 
