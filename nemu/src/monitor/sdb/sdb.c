@@ -72,6 +72,30 @@ static int cmd_si(char *args) {
   return 0;
 }
 
+static int cmd_info(char *args) {
+  if (args == NULL) {
+    printf("请输入要查看的对象，info r/w。\n");
+    return 0;
+  }
+
+  char opt;
+  if (sscanf(args, "%c", &opt) != 1) {
+    printf("参数读取错误，请重新输入\n");
+    return 0;
+  }
+
+  if (opt == 'r') {
+    isa_reg_display();
+    return 0;
+  } else if (opt == 'w') {
+    //待实现监视点
+    return 0;
+  } else {
+    printf("错误的参数：%s\n", args);
+    return 0;
+  }
+}
+
 static struct {
   const char *name;
   const char *description;
@@ -81,6 +105,7 @@ static struct {
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   { "si", "execute N steps, default: N = 1", cmd_si },
+  { "info", "display register(r) or watchpoint(w)", cmd_info },
 
   /* TODO: Add more commands */
 
