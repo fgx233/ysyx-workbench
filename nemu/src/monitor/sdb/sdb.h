@@ -17,6 +17,7 @@
 #define __SDB_H__
 
 #include <common.h>
+#include <memory/paddr.h>//让sdb.c能够使用内存函数
 
 word_t expr(char *e, bool *success);
 

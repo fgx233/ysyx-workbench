@@ -63,7 +63,7 @@ static int cmd_si(char *args) {
   int n = 0;
   int num = sscanf(args, "%d", &n);
 
-  if (num != 1) {
+  if (num != 1 || n < 0) {
     printf("参数：“%s”不合法。\n", args);
     return 0;
   }
@@ -96,6 +96,23 @@ static int cmd_info(char *args) {
   }
 }
 
+static int cmd_x(char *args) {
+  
+  int n = 0;
+  paddr_t expr = 0;
+
+  if (sscanf(args, "%d" " " SCN_PADDR, &n, &expr) != 2) {
+    printf("错误的参数：%s\n", args);
+    return 0;
+  }
+
+  for (int i = 0; i < n; i++) {
+    printf(FMT_PADDR ": " FMT_WORD "\n", expr, paddr_read(expr, 4));
+    expr += 4;
+  }
+  return 0;
+}
+
 static struct {
   const char *name;
   const char *description;
@@ -106,6 +123,7 @@ static struct {
   { "q", "Exit NEMU", cmd_q },
   { "si", "execute N steps, default: N = 1", cmd_si },
   { "info", "display register(r) or watchpoint(w)", cmd_info },
+  { "x", "scan the N words form given expr in memory, usage: x N expr", cmd_x},
 
   /* TODO: Add more commands */
 
