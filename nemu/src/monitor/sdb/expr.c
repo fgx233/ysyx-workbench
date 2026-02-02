@@ -21,7 +21,7 @@
 #include <regex.h>
 
 enum {
-  TK_NOTYPE = 256, TK_EQ,
+  TK_NOTYPE = 256, TK_EQ, TK_DEC,
 
   /* TODO: Add more token types */
 
@@ -36,9 +36,15 @@ static struct rule {
    * Pay attention to the precedence level of different rules.
    */
 
-  {" +", TK_NOTYPE},    // spaces
-  {"\\+", '+'},         // plus
-  {"==", TK_EQ},        // equal
+  {" +", TK_NOTYPE},    // spaces   空格串（一个或多个空格）
+  {"0|[1-9][0-9]*", TK_DEC},   //          十进制整数
+  {"\\+", '+'},         // plus     +
+  {"\\-", '-'},         //          -
+  {"\\*", '*'},         //          *
+  {"\\/", '/'},         //          /
+  {"\\(", '('},         //          (
+  {"\\)", ')'},         //          )
+  {"==", TK_EQ},        // equal    ==
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -93,12 +99,22 @@ static bool make_token(char *e) {
          * to record the token in the array `tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */
+        
 
-        switch (rules[i].token_type) {
-          default: TODO();
+        if (rules[i].token_type != TK_NOTYPE) {
+          tokens[nr_token].type = rules[i].token_type;//将匹配到的字符串类型写入对应的token元素的类型
+          int nr_write = snprintf(tokens[nr_token].str, sizeof(tokens[nr_token].str), "%.*s", substr_len, substr_start);//将匹配到的字符串全部写入token元素的字符串
+          if (nr_write >= sizeof(tokens[i].str) || nr_write < 0) {      //token读取正确性检测
+            printf("token有错误或过长:%.*s\n", substr_len, substr_start);
+            return false;
+          }
+          nr_token++;
+          break;
         }
+        
+        
 
-        break;
+        
       }
     }
 
@@ -118,8 +134,19 @@ word_t expr(char *e, bool *success) {
     return 0;
   }
 
-  /* TODO: Insert codes to evaluate the expression. */
-  TODO();
+  printf("录入表达式：");
+  for(int i = 0; i < nr_token; i ++) {
+    printf("%s", tokens[i].str);
+  }
+  printf("\n");
+
+
+  *success = true;
+
+  
+
+  // /* TODO: Insert codes to evaluate the expression. */
+  // TODO();
 
   return 0;
 }

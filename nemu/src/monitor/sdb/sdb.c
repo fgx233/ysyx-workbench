@@ -97,6 +97,11 @@ static int cmd_info(char *args) {
 }
 
 static int cmd_x(char *args) {
+
+  if (args == NULL) {
+    printf("无有效输入，请重新输入地址表达式\n");
+    return 0;
+  }
   
   int n = 0;
   paddr_t expr = 0;
@@ -113,6 +118,19 @@ static int cmd_x(char *args) {
   return 0;
 }
 
+static int cmd_p(char *args) {
+
+  if (args == NULL) {
+    printf("无有效输入，请重新输入待求值表达式\n");
+    return 0;
+  }
+
+  bool success = false;
+  word_t res = expr(args, &success);
+  printf("计算结果是:%d\n", res);
+  return 0;
+}
+
 static struct {
   const char *name;
   const char *description;
@@ -124,6 +142,7 @@ static struct {
   { "si", "execute N steps, default: N = 1", cmd_si },
   { "info", "display register(r) or watchpoint(w)", cmd_info },
   { "x", "scan the N words form given expr in memory, usage: x N expr", cmd_x},
+  { "p", "calculate the expr", cmd_p},
 
   /* TODO: Add more commands */
 
