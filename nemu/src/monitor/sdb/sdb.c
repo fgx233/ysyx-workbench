@@ -127,7 +127,7 @@ static int cmd_p(char *args) {
 
   bool success = false;
   word_t res = expr(args, &success);
-  printf("计算结果是:%d\n", res);
+  printf("计算结果是:" FMT_SWORD "\n", res);
   return 0;
 }
 

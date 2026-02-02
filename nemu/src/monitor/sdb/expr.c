@@ -110,11 +110,7 @@ static bool make_token(char *e) {
           }
           nr_token++;
           break;
-        }
-        
-        
-
-        
+        }        
       }
     }
 
@@ -127,26 +123,101 @@ static bool make_token(char *e) {
   return true;
 }
 
+bool check_parentheses(int p, int q) {
+    int nr_brace = 0;
+
+    if (tokens[p].type == '(' && tokens[q].type == ')') {
+        for (int i = p; i <= q; i ++) {
+            if (tokens[i].type == '(') {
+                nr_brace += 1;
+            }
+            if (tokens[i].type == ')') {
+                nr_brace -= 1;
+            }
+            if (nr_brace < 0 || (nr_brace == 0 && i != q)) {
+                return false;
+            }
+        }
+        
+        if (nr_brace == 0) {
+            return true;
+        }
+        return false;
+    }
+
+    return false;
+}
+
+int find_op(int p, int q) {
+  int op = p;
+  int old_class = 100;
+  int new_class = 0;
+  int jump = 0;
+  for(int i = p; i < q; i++) {
+
+    if (tokens[i].type == '(')
+    {
+      jump += 1;
+      continue;
+    } else if (tokens[i].type == ')') {
+      jump -= 1;
+      continue;
+    } 
+
+    if (jump != 0) {
+      continue;
+    }
+    
+    switch (tokens[i].type)
+    {
+    case '+': case '-': new_class = 1;break;
+    case '*': case '/': new_class = 2;break;
+    default: new_class = 100;
+    }
+
+    if (old_class >= new_class) {
+      old_class = new_class;
+      op = i;
+    }
+  }
+  return op;
+}
+
+word_t eval(int p, int q) {
+  if (p > q) {
+    return 0;
+  } else if (p == q) {
+    word_t num = 0;
+    sscanf(tokens[p].str, SCN_SWORD, &num);
+    return num;
+  } else if (check_parentheses(p, q) == true) {
+    return eval(p + 1, q - 1);
+  } else {
+    int op = find_op(p, q);
+    word_t val1 = eval(p, op - 1);
+    word_t val2 = eval(op + 1, q);
+
+    switch (tokens[op].type)
+    {
+    case '+': return val1 + val2;
+    case '-': return val1 - val2;
+    case '*': return val1 * val2;
+    case '/': return val1 / val2;
+    default:printf("未知的类型:%s\n", tokens[op].str);return 0;
+    }
+  }
+}
 
 word_t expr(char *e, bool *success) {
   if (!make_token(e)) {
     *success = false;
     return 0;
   }
-
-  printf("录入表达式：");
-  for(int i = 0; i < nr_token; i ++) {
-    printf("%s", tokens[i].str);
-  }
-  printf("\n");
-
-
-  *success = true;
-
   
-
+  word_t res = eval(0, nr_token - 1);
+  *success = true;
   // /* TODO: Insert codes to evaluate the expression. */
   // TODO();
 
-  return 0;
+  return res;
 }
