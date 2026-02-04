@@ -19,12 +19,21 @@
  * Type 'man regex' for more information about POSIX regex functions.
  */
 #include <regex.h>
+#include <stdarg.h>
 
 enum {
   TK_NOTYPE = 256, TK_EQ, TK_DEC,
 
   /* TODO: Add more token types */
 
+};
+
+enum OP_CLASS {
+  ONE, TWO, THREE, FOUR, FIVE
+};
+
+enum ERR_TYPE {
+  OVER, NUM, BRACKET, OP, DIV, UNKNOWN
 };
 
 static struct rule {
@@ -123,8 +132,84 @@ static bool make_token(char *e) {
   return true;
 }
 
-bool check_parentheses(int p, int q) {
+void print_err(int type, int error_num, ...) {
+
+  printf("读取字符串:");
+  for (int i = 0; i < nr_token; i++)
+  {
+    printf("%s", tokens[i].str);
+  }
+  printf("\n");
+
+  va_list ptr;
+
+  va_start(ptr, error_num);
+
+  
+  int position1 = 0;
+  int position2 = 0;
+
+  int p1_len = 0;
+  int p2_len = 0;
+
+  if (error_num == 1) {
+    position1 = va_arg(ptr, int);
+    for (int i = 0; i < position1; i++) {
+      p1_len += strlen(tokens[i].str);
+    }
+  } else if (error_num == 2) {
+    position1 = va_arg(ptr, int);
+    position2 = va_arg(ptr, int);
+    for (int i = 0; i < position1; i++) {
+      p1_len += strlen(tokens[i].str);
+    }
+    for (int i = 0; i < position2; i++) {
+      p2_len += strlen(tokens[i].str);
+    }
+  } else {
+    printf("错误打印函数接收了错误的参数\n");
+    return;
+  }
+
+  printf("错误的地方:");
+  
+  switch (type)
+  {
+  case OVER:
+            printf("%*s%s\n", p2_len, "", "^^");
+            printf("p<q, 求值越界/空括号\n");
+            break;
+  case NUM:
+            printf("%*s%c\n", p1_len, "", '^');
+            printf("p=q, 此token非数字类型\n");
+            break;
+  case BRACKET:
+            printf("%*s%c", p1_len, "", '^');
+            printf("%*s%c\n", p2_len - p1_len - 1, "", '^');
+            printf("check_parentheses, 括号数量不匹配\n");
+            break;
+  case OP:
+            printf("%*s%c", p1_len, "", '^');
+            printf("%*s%c\n", p2_len - p1_len - 1, "", '^');
+            printf("find_op, 寻找主运算符失败\n");
+            break;
+  case DIV:
+            printf("%*s%c\n", p1_len, "", '^');
+            printf("div, 发生除0行为\n");
+            break;
+  case UNKNOWN:
+            printf("%*s%c\n", p1_len, "", '^');
+            printf("此运算符类型未知\n");
+            break;
+  default:  printf("错误打印函数接收了错误的参数\n");
+            return;
+  }
+  return;
+}
+
+bool check_parentheses(int p, int q, bool *success) {
     int nr_brace = 0;
+    bool flag = true;
 
     if (tokens[p].type == '(' && tokens[q].type == ')') {
         for (int i = p; i <= q; i ++) {
@@ -135,13 +220,17 @@ bool check_parentheses(int p, int q) {
                 nr_brace -= 1;
             }
             if (nr_brace < 0 || (nr_brace == 0 && i != q)) {
-                return false;
+                flag = false;
             }
         }
         
-        if (nr_brace == 0) {
+        if (nr_brace == 0 && flag == true) {
             return true;
+        } else if (nr_brace == 0 && flag == false) {
+            return false;
         }
+        print_err(BRACKET, 2, p, q);
+        *success = false;
         return false;
     }
 
@@ -150,10 +239,10 @@ bool check_parentheses(int p, int q) {
 
 int find_op(int p, int q) {
   int op = p;
-  int old_class = 100;
-  int new_class = 0;
+  int old_class = FIVE;
+  int new_class = ONE;
   int jump = 0;
-  for(int i = p; i < q; i++) {
+  for(int i = p; i <= q; i++) {
 
     if (tokens[i].type == '(')
     {
@@ -170,9 +259,9 @@ int find_op(int p, int q) {
     
     switch (tokens[i].type)
     {
-    case '+': case '-': new_class = 1;break;
-    case '*': case '/': new_class = 2;break;
-    default: new_class = 100;
+    case '+': case '-': new_class = ONE;break;
+    case '*': case '/': new_class = TWO;break;
+    default: new_class = FIVE;
     }
 
     if (old_class >= new_class) {
@@ -180,30 +269,68 @@ int find_op(int p, int q) {
       op = i;
     }
   }
+
+  if (old_class == FIVE) {
+    return -1;
+  }
   return op;
 }
 
-word_t eval(int p, int q) {
+word_t eval(int p, int q, bool *success) {
+
+  if (*success == false) {       //若计算中出错，跳过剩余计算
+    return 0;
+  }
+
   if (p > q) {
+    print_err(OVER, 2, p, q);
+    *success = false; 
     return 0;
   } else if (p == q) {
+    if (tokens[p].type != TK_DEC) {
+      print_err(NUM, 1, p);
+      *success = false;
+      return 0;
+    }
     word_t num = 0;
     sscanf(tokens[p].str, SCN_SWORD, &num);
     return num;
-  } else if (check_parentheses(p, q) == true) {
-    return eval(p + 1, q - 1);
+  } else if (check_parentheses(p, q, success) == true) {
+    return eval(p + 1, q - 1, success);
   } else {
+    if(*success == false) {
+      return 0;
+    }
+
     int op = find_op(p, q);
-    word_t val1 = eval(p, op - 1);
-    word_t val2 = eval(op + 1, q);
+    if (op == -1) {
+      *success = false;
+      print_err(OP, 2, p, q);
+      return 0;    
+    }
+    word_t val1 = eval(p, op - 1, success);
+    word_t val2 = eval(op + 1, q, success);
+
+    if (*success == false) {
+      return 0;
+    }
 
     switch (tokens[op].type)
     {
     case '+': return val1 + val2;
     case '-': return val1 - val2;
     case '*': return val1 * val2;
-    case '/': return val1 / val2;
-    default:printf("未知的类型:%s\n", tokens[op].str);return 0;
+    case '/': if (val2 == 0) {
+                *success = false;
+                print_err(DIV, 1, op + 1);
+                for (int i = op + 1; i <= q; i ++) {
+                  printf("%s",tokens[i].str);
+                }
+                printf("\n");
+                return 0;
+              }
+              return val1 / val2;
+    default: *success = false; print_err(UNKNOWN, 1, op);return 0;
     }
   }
 }
@@ -214,10 +341,7 @@ word_t expr(char *e, bool *success) {
     return 0;
   }
   
-  word_t res = eval(0, nr_token - 1);
-  *success = true;
-  // /* TODO: Insert codes to evaluate the expression. */
-  // TODO();
+  word_t res = eval(0, nr_token - 1, success);
 
   return res;
 }

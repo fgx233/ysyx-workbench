@@ -125,10 +125,16 @@ static int cmd_p(char *args) {
     return 0;
   }
 
-  bool success = false;
+  bool success = true;
   word_t res = expr(args, &success);
-  printf("计算结果是:" FMT_SWORD "\n", res);
-  return 0;
+  if (success == false) {
+    printf("运算出现错误，请重新检查输入\n");
+    return 0;
+  } else {
+    printf("计算结果是:" FMT_SWORD "\n", res);
+    return 0;
+  }
+
 }
 
 static struct {
