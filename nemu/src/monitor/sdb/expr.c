@@ -82,7 +82,7 @@ typedef struct token {
   char str[32];
 } Token;
 
-static Token tokens[32] __attribute__((used)) = {};
+static Token tokens[256] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 static bool make_token(char *e) {
@@ -99,8 +99,8 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -329,7 +329,7 @@ word_t eval(int p, int q, bool *success) {
                 printf("\n");
                 return 0;
               }
-              return val1 / val2;
+              return (sword_t)val1 / (sword_t)val2;
     default: *success = false; print_err(UNKNOWN, 1, op);return 0;
     }
   }

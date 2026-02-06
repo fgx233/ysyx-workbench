@@ -20,8 +20,10 @@
 #include <assert.h>
 #include <string.h>
 
+#define MAX 65536
+
 // this should be enough
-static char buf[65536] = {};
+static char buf[MAX] = {};
 static char code_buf[65536 + 128] = {}; // a little larger than `buf`
 static char *code_format =
 "#include <stdio.h>\n"
@@ -31,19 +33,76 @@ static char *code_format =
 "  return 0; "
 "}";
 
+int total_size = 0;
+int deep = 0;
+
+
+static uint32_t choose(int x) {
+  return (uint32_t)(rand() % x);
+}
+
+static void gen_num() {
+  uint32_t num = rand();
+
+  int n = snprintf(buf + total_size, MAX - total_size, "%u", num);
+  total_size += n;
+  if (total_size >= MAX) {
+    printf("超出了数组最大长度\n");
+  }
+}
+
+static void gen_rand_op() {
+  char op;
+  switch (choose(4))
+  {
+  case 0: op = '+';break;
+  case 1: op = '-';break;
+  case 2: op = '*';break;
+  default:op = '/';break;
+  }
+
+  int n = snprintf(buf + total_size, MAX - total_size, "%c", op);
+  total_size += n;
+  if (total_size >= MAX) {
+    printf("超出了数组最大长度\n");
+  }
+}
+
+static void gen(char a) {
+  int n = snprintf(buf + total_size, MAX - total_size, "%c", a);
+  total_size += n;
+  if (total_size >= MAX) {
+    printf("超出了数组最大长度\n");
+  }
+}
+
 static void gen_rand_expr() {
-  buf[0] = '\0';
+  deep++;
+  if (deep >= 7) {
+    gen_num();
+    return;
+  }
+  switch (choose(3))
+  {
+  case 0: gen_num(); break;
+  case 1: gen('('); gen_rand_expr(); gen(')'); break;
+  default:gen_rand_expr(); gen_rand_op(); gen_rand_expr(); break;
+  }
 }
 
 int main(int argc, char *argv[]) {
   int seed = time(0);
   srand(seed);
+
   int loop = 1;
   if (argc > 1) {
     sscanf(argv[1], "%d", &loop);
   }
   int i;
   for (i = 0; i < loop; i ++) {
+
+    total_size = 0;
+    deep = 0;
     gen_rand_expr();
 
     sprintf(code_buf, code_format, buf);

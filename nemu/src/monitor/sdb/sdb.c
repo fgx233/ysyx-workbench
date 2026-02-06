@@ -137,12 +137,57 @@ static int cmd_p(char *args) {
 
 }
 
+static int cmd_test(char *args) {
+  FILE *fp = fopen("/home/fgx/ysyx-workbench/nemu/test/gen-expr/input", "r");
+  if (fp == NULL) {
+    printf("打开测试文件失败，请检查文件是否存在\n");
+    return 0;
+  }
+
+  char str[256] = {0};
+
+  int total_check = 0;
+  int err_num = 0;
+
+  while (fgets(str, sizeof(str), fp) != NULL)
+  {
+    total_check++;
+
+    word_t expect_result = 0;
+    char expression[256] = {0};
+
+    sscanf(str, "%u %s", &expect_result, expression);
+    bool success = true;
+    word_t my_result = expr(expression, &success);
+
+    if (success == false) {
+      err_num++;
+      printf("求值出错：%s\n", expression);
+      printf("------------------------------------------\n");
+    } else if (my_result != expect_result) {
+      err_num++;
+      printf("错误表达式：%s\n", expression);
+      printf("期望值：" FMT_SWORD "\n", expect_result);
+      printf("实际值：" FMT_SWORD "\n", my_result);
+      printf("------------------------------------------\n");
+    }
+
+  }
+  
+  printf("计算正确率：%f%%\n", 100*((total_check - err_num)/(double)total_check));
+
+  fclose(fp);
+
+  return 0;
+}
+
 static struct {
   const char *name;
   const char *description;
   int (*handler) (char *);
 } cmd_table [] = {
   { "help", "Display information about all supported commands", cmd_help },
+  { "test", "test the eval function use input file", cmd_test},
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   { "si", "execute N steps, default: N = 1", cmd_si },
@@ -178,6 +223,8 @@ static int cmd_help(char *args) {
   }
   return 0;
 }
+
+
 
 void sdb_set_batch_mode() {
   is_batch_mode = true;

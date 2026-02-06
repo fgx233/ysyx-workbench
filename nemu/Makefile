@@ -61,3 +61,41 @@ else
 # Include rules to build NEMU
 include $(NEMU_HOME)/scripts/native.mk
 endif
+
+new-test:
+	@if [ -z "$(NAME)" ]; then echo "Usage: make new-test NAME=项目名"; exit 1; fi
+	@mkdir -p test/$(NAME)
+	
+	@echo "Creating Makefile for $(NAME)..."
+	@echo 'NAME = $(NAME)' > test/$(NAME)/Makefile
+	@echo 'SRCS = $(NAME).c' >> test/$(NAME)/Makefile
+	@echo 'INC_PATH += $$(NEMU_HOME)/include' >> test/$(NAME)/Makefile
+	@echo '' >> test/$(NAME)/Makefile
+
+# --- 关键修改区 ---
+# 1. 直接引用主目录 Makefile 以获得 git_commit 定义
+	@echo '# 获取 git_commit 宏定义' >> test/$(NAME)/Makefile
+	@echo '-include $$(NEMU_HOME)/../Makefile' >> test/$(NAME)/Makefile
+	@echo '' >> test/$(NAME)/Makefile
+
+# 2. 引入基础编译规则 (build.mk 是通用的，它不会带偏你的 run 逻辑)
+	@echo '# 引入通用的编译链接规则' >> test/$(NAME)/Makefile
+	@echo 'include $$(NEMU_HOME)/scripts/build.mk' >> test/$(NAME)/Makefile
+	@echo '' >> test/$(NAME)/Makefile
+
+# 3. 定义你自己的、纯净的 run/gdb 目标
+	@echo 'run: $$(BINARY)' >> test/$(NAME)/Makefile
+	@echo '	@$$(call git_commit, "Test Run: $$(NAME)")' >> test/$(NAME)/Makefile
+	@echo '	@./build/$$(NAME)' >> test/$(NAME)/Makefile
+	@echo '' >> test/$(NAME)/Makefile
+
+	@echo 'gdb: $$(BINARY)' >> test/$(NAME)/Makefile
+	@echo '	@$$(call git_commit, "Test GDB: $$(NAME)")' >> test/$(NAME)/Makefile
+	@echo '	gdb ./build/$$(NAME)' >> test/$(NAME)/Makefile
+# ------------------
+
+	@if [ ! -f test/$(NAME)/$(NAME).c ]; then \
+		echo '#include <stdio.h>\n\nint main() {\n    printf("Hello $(NAME)!\\n");\n    return 0;\n}' > test/$(NAME)/$(NAME).c; \
+	fi
+
+
