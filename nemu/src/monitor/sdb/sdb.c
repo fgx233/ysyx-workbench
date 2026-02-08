@@ -104,16 +104,24 @@ static int cmd_x(char *args) {
   }
   
   int n = 0;
-  paddr_t expr = 0;
+  char str[256] = {0};
 
-  if (sscanf(args, "%d" " " SCN_PADDR, &n, &expr) != 2) {
+  if (sscanf(args, "%d %s", &n, str) != 2) {
     printf("错误的参数：%s\n", args);
     return 0;
   }
 
+  bool success = true;
+  word_t result = expr(str, &success);
+
+  if (success == false) {
+    printf("表达式求值错误：%s\n", str);
+    return 0;
+  }
+
   for (int i = 0; i < n; i++) {
-    printf(FMT_PADDR ": " FMT_WORD "\n", expr, paddr_read(expr, 4));
-    expr += 4;
+    printf(FMT_PADDR ": " FMT_WORD "\n", result, paddr_read(result, 4));
+    result += 4;
   }
   return 0;
 }
@@ -132,6 +140,7 @@ static int cmd_p(char *args) {
     return 0;
   } else {
     printf("计算结果是:" FMT_SWORD "\n", res);
+    printf("计算结果是:" FMT_WORD "\n", res);
     return 0;
   }
 

@@ -20,20 +20,21 @@
  */
 #include <regex.h>
 #include <stdarg.h>
+#include <memory/paddr.h>
 
 enum {
-  TK_NOTYPE = 256, TK_EQ, TK_DEC,
+  TK_NOTYPE = 256, TK_EQ, TK_DEC, TK_HEX, TK_REG, TK_NEQ, TK_AND, TK_OR, TK_DREF, TK_MINUS
 
   /* TODO: Add more token types */
 
 };
 
 enum OP_CLASS {
-  ONE, TWO, THREE, FOUR, FIVE
+  ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT,
 };
 
 enum ERR_TYPE {
-  OVER, NUM, BRACKET, OP, DIV, UNKNOWN
+  OVER, NUM, BRACKET, OP, DIV, UNKNOWN, REG, DEREF, MINUS
 };
 
 static struct rule {
@@ -45,15 +46,20 @@ static struct rule {
    * Pay attention to the precedence level of different rules.
    */
 
-  {" +", TK_NOTYPE},    // spaces   空格串（一个或多个空格）
-  {"0|[1-9][0-9]*", TK_DEC},   //          十进制整数
-  {"\\+", '+'},         // plus     +
-  {"\\-", '-'},         //          -
-  {"\\*", '*'},         //          *
-  {"\\/", '/'},         //          /
-  {"\\(", '('},         //          (
-  {"\\)", ')'},         //          )
-  {"==", TK_EQ},        // equal    ==
+  {" +", TK_NOTYPE},              // spaces   空格串（一个或多个空格）
+  {"\\$0|ra|sp|gp|tp|pc|t[0-6]|s(1[0-1]|[0-9])|a[0-7]", TK_REG},            // reg      寄存器
+  {"0[xX][0-9a-fA-F]+", TK_HEX},  //          十六进制整数
+  {"[0-9]+", TK_DEC},             //          十进制整数
+  {"\\+", '+'},                   // plus     +
+  {"\\-", '-'},                   //          -
+  {"\\*", '*'},                   //          *
+  {"\\/", '/'},                   //          /
+  {"\\(", '('},                   //          (
+  {"\\)", ')'},                   //          )
+  {"==", TK_EQ},                  // equal    ==
+  {"!=", TK_NEQ},                 // notequal !=
+  {"\\&\\&", TK_AND},                 // and      &&
+  {"\\|\\|", TK_OR},                  // or       ||
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -99,8 +105,8 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+            i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -128,6 +134,34 @@ static bool make_token(char *e) {
       return false;
     }
   }
+
+	//识别指针解引用与乘法
+	if (tokens[0].type == '*') {
+		tokens[0].type = TK_DREF;
+	}
+
+	for (int i = 1; i < nr_token; i ++) {
+		if (tokens[i].type == '*' && (tokens[i - 1].type == ')' || 
+                                  tokens[i - 1].type == TK_HEX || 
+                                  tokens[i - 1].type == TK_DEC ||
+                                  tokens[i - 1].type == TK_REG)) {continue;} 
+    else if (tokens[i].type == '*') {
+			tokens[i].type = TK_DREF; 
+		}
+	}
+
+	//识别负号与减法
+	if (tokens[0].type == '-') {
+		tokens[0].type = TK_MINUS;
+	}
+
+	for (int i = 1; i < nr_token; i ++) {
+		if (tokens[i].type == '-' && (tokens[i - 1].type == ')' || tokens[i - 1].type == TK_HEX || tokens[i - 1].type == TK_DEC)) {
+			continue;
+		} else if (tokens[i].type == '-') {
+			tokens[i].type = TK_MINUS; 
+		}
+	}
 
   return true;
 }
@@ -181,7 +215,7 @@ void print_err(int type, int error_num, ...) {
             break;
   case NUM:
             printf("%*s%c\n", p1_len, "", '^');
-            printf("p=q, 此token非数字类型\n");
+            printf("p=q, 此token非十进制数字、十六进制数字、寄存器类型\n");
             break;
   case BRACKET:
             printf("%*s%c", p1_len, "", '^');
@@ -200,6 +234,20 @@ void print_err(int type, int error_num, ...) {
   case UNKNOWN:
             printf("%*s%c\n", p1_len, "", '^');
             printf("此运算符类型未知\n");
+            break;
+  case REG:
+            printf("%*s%c\n", p1_len, "", '^');
+            printf("p=q, 此token寄存器读取失败\n");
+            break;
+  case DEREF:
+            printf("%*s%c", p1_len, "", '^');
+            printf("%*s%c\n", p2_len - p1_len - 1, "", '^');
+            printf("deref, 指针解引用时，地址计算出错\n");
+            break;
+  case MINUS:
+            printf("%*s%c", p1_len, "", '^');
+            printf("%*s%c\n", p2_len - p1_len - 1, "", '^');
+            printf("minus, 计算负数时，负号后整体计算出错\n");
             break;
   default:  printf("错误打印函数接收了错误的参数\n");
             return;
@@ -239,7 +287,7 @@ bool check_parentheses(int p, int q, bool *success) {
 
 int find_op(int p, int q) {
   int op = p;
-  int old_class = FIVE;
+  int old_class = EIGHT;
   int new_class = ONE;
   int jump = 0;
   for(int i = p; i <= q; i++) {
@@ -259,18 +307,31 @@ int find_op(int p, int q) {
     
     switch (tokens[i].type)
     {
-    case '+': case '-': new_class = ONE;break;
-    case '*': case '/': new_class = TWO;break;
-    default: new_class = FIVE;
+      case TK_OR: new_class = ONE; break;
+      case TK_AND: new_class = TWO; break;
+      case TK_EQ: case TK_NEQ: new_class = THREE; break;
+      case '+': case '-': new_class = FOUR;break;
+      case '*': case '/': new_class = FIVE;break;
+      case TK_MINUS: new_class = SIX; break;
+      case TK_DREF: new_class = SEVEN; break;
+      default: new_class = EIGHT;
+    }
+    
+    if (tokens[i].type == TK_MINUS || tokens[i].type == TK_DREF) {
+      if (old_class > new_class) {
+        old_class = new_class;
+        op = i;
+      }
+    } else {
+      if (old_class >= new_class) {
+        old_class = new_class;
+        op = i;
+      }
     }
 
-    if (old_class >= new_class) {
-      old_class = new_class;
-      op = i;
-    }
   }
 
-  if (old_class == FIVE) {
+  if (old_class == EIGHT) {
     return -1;
   }
   return op;
@@ -282,19 +343,32 @@ word_t eval(int p, int q, bool *success) {
     return 0;
   }
 
-  if (p > q) {
+  if (p > q) {                   //若计算越界，打印越界错误，返回
     print_err(OVER, 2, p, q);
     *success = false; 
     return 0;
-  } else if (p == q) {
-    if (tokens[p].type != TK_DEC) {
+  } else if (p == q) {            //若token不是下述类型，打印未知类型错误，返回
+    if (tokens[p].type != TK_DEC && tokens[p].type != TK_HEX && tokens[p].type != TK_REG) {
       print_err(NUM, 1, p);
       *success = false;
       return 0;
     }
     word_t num = 0;
-    sscanf(tokens[p].str, SCN_SWORD, &num);
-    return num;
+    if (tokens[p].type == TK_DEC) {
+      sscanf(tokens[p].str, SCN_UWORD, &num);
+      return num;
+    } else if (tokens[p].type == TK_HEX) {
+      sscanf(tokens[p].str, SCN_WORD, &num);
+      return num;
+    } else if (tokens[p].type == TK_REG) {
+      num = isa_reg_str2val(tokens[p].str, success);
+      if (*success == false) {
+        print_err(REG, 1, p);
+        return 0;
+      }
+      return num;
+    }
+    
   } else if (check_parentheses(p, q, success) == true) {
     return eval(p + 1, q - 1, success);
   } else {
@@ -308,8 +382,31 @@ word_t eval(int p, int q, bool *success) {
       print_err(OP, 2, p, q);
       return 0;    
     }
-    word_t val1 = eval(p, op - 1, success);
-    word_t val2 = eval(op + 1, q, success);
+
+    word_t val1 = 0;
+    word_t val2 = 0;
+
+    if (tokens[op].type == TK_DREF) {
+      val2 = eval(op + 1, q, success);
+      if (*success == false) {
+        print_err(DEREF, 2, op + 1, q);
+        return 0;
+      }
+      return paddr_read(val2, 4);
+    }
+
+    if (tokens[op].type == TK_MINUS) {
+      val2 = eval(op + 1, q, success);
+      if (*success == false) {
+        print_err(MINUS, 2, op + 1, q);
+        return 0;
+      }
+      return ~val2 + 1;
+    }
+
+    val1 = eval(p, op - 1, success);
+    val2 = eval(op + 1, q, success);
+    
 
     if (*success == false) {
       return 0;
@@ -330,9 +427,14 @@ word_t eval(int p, int q, bool *success) {
                 return 0;
               }
               return (sword_t)val1 / (sword_t)val2;
+    case TK_AND: return val1 && val2;
+    case TK_OR:  return val1 || val2;
+    case TK_EQ:  return val1 == val2;
+    case TK_NEQ: return val1 != val2;
     default: *success = false; print_err(UNKNOWN, 1, op);return 0;
     }
   }
+  return 0;
 }
 
 word_t expr(char *e, bool *success) {
