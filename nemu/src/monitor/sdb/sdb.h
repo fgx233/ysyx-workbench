@@ -17,8 +17,25 @@
 #define __SDB_H__
 
 #include <common.h>
+#include <isa.h>
 #include <memory/paddr.h>//让sdb.c能够使用内存函数
+#include <cpu/cpu.h>
+#include <utils.h>
+
+typedef struct watchpoint {
+  int NO;
+  struct watchpoint *next;
+
+  /* TODO: Add more members if necessary */
+  char expr[256];
+  word_t old_val;
+  word_t new_val;
+} WP;
 
 word_t expr(char *e, bool *success);
-
+WP* new_wp(char *e);
+void free_wp(WP *wp);
+void print_all();
+void delete_wp(int NO);
+void check_wp();
 #endif

@@ -51,7 +51,7 @@ typedef uint16_t ioaddr_t;
 #define SCN_PADDR MUXDEF(PMEM64, "%" SCNx64, "%" SCNx32) //用于格式化输入word_t类型的参数
 
 //添加有符号字类型格式化输出宏
-#define FMT_SWORD MUXDEF(CONFIG_ISA64, "%20" PRId64, "%11" PRId32)
+#define FMT_SWORD MUXDEF(CONFIG_ISA64, "0b%020" PRId64, "0b%011" PRId32)
 
 #include <debug.h>
 

@@ -88,7 +88,7 @@ static int cmd_info(char *args) {
     isa_reg_display();
     return 0;
   } else if (opt == 'w') {
-    //待实现监视点
+    print_all();
     return 0;
   } else {
     printf("错误的参数：%s\n", args);
@@ -144,6 +144,37 @@ static int cmd_p(char *args) {
     return 0;
   }
 
+}
+
+static int cmd_w(char *args) {
+  if (args == NULL) {
+    printf("请输入监视点表达式\n");
+    return 0;
+  }
+  
+  if (new_wp(args) == NULL) {
+    printf("添加监视点失败。\n");
+    return 0;
+  } else {
+    printf("添加监视点:%s\n", args);
+    return 0;
+  }
+}
+
+static int cmd_d(char *args) {
+  if (args == NULL) {
+    printf("请输入要删除的监视点序号\n");
+    return 0;
+  }
+
+  int NO = 0;
+  if (sscanf(args, "%d", &NO) != 1) {
+    printf("读取参数失败：%s\n", args);
+    return 0;
+  } else {
+    delete_wp(NO);
+    return 0;
+  }
 }
 
 static int cmd_test(char *args) {
@@ -203,6 +234,8 @@ static struct {
   { "info", "display register(r) or watchpoint(w)", cmd_info },
   { "x", "scan the N words form given expr in memory, usage: x N expr", cmd_x},
   { "p", "calculate the expr", cmd_p},
+  { "w", "add new watchpoint", cmd_w},
+  { "d", "delete watchpoint", cmd_d},
 
   /* TODO: Add more commands */
 
