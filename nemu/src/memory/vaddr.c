@@ -21,9 +21,12 @@ word_t vaddr_ifetch(vaddr_t addr, int len) {
 }
 
 word_t vaddr_read(vaddr_t addr, int len) {
-  return paddr_read(addr, len);
+  word_t ret = paddr_read(addr, len);
+  IFDEF(CONFIG_MTRACE, log_write("MEM_R: ADDR:" FMT_PADDR " len:%d data:" FMT_WORD "\n", addr, len, ret));
+  return ret;
 }
 
 void vaddr_write(vaddr_t addr, int len, word_t data) {
+  IFDEF(CONFIG_MTRACE, log_write("MEM_W: ADDR:" FMT_PADDR " len:%d data:" FMT_WORD "\n", addr, len, data));
   paddr_write(addr, len, data);
 }
