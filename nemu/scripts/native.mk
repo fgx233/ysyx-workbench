@@ -25,6 +25,8 @@ $(BINARY):: compile_git
 # Some convenient rules
 
 override ARGS ?= --log=$(BUILD_DIR)/nemu-log.txt
+ELF ?= $(basename $(IMG)).elf
+override ARGS += $(if $(IMG), -e $(ELF))
 override ARGS += $(ARGS_DIFF)
 
 

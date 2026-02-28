@@ -156,13 +156,18 @@ config ITRACE_COND
 config IRINGBUF
   depends on ITRACE
   bool "Enable iringbuf"
-  default y
+  default n
 
 config MTRACE
   depends on ITRACE
   bool "Enable memory trace"
   default n
-  
+
+config FTRACE
+  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  bool "Enable function tracer"
+  default n 
+
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"
