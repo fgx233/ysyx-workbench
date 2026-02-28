@@ -87,7 +87,7 @@ static const char *find_func(paddr_t addr) {
   return "Uknnown function";
 }
 
-void ftrace_call(paddr_t pc, paddr_t dest) {
+static void ftrace_call(paddr_t pc, paddr_t dest) {
   log_write(FMT_PADDR":",pc);
   for (int i = 0; i < call_depth; i++) {
     log_write("  ");
@@ -96,12 +96,27 @@ void ftrace_call(paddr_t pc, paddr_t dest) {
   call_depth++;
 }
 
-void ftrace_ret(paddr_t pc) {
+static void ftrace_ret(paddr_t pc) {
   call_depth--;
   log_write(FMT_PADDR":",pc);
   for (int i = 0; i < call_depth; i++) {
     log_write("  ");
   }
   log_write("ret  [%s]\n", find_func(pc));
+}
+
+void call_check(paddr_t pc, paddr_t dest, int rd) {
+  if (rd == 1 || rd == 5) {
+    ftrace_call(pc, dest);
+  }
+}
+
+void ret_check(paddr_t pc, paddr_t dest, int rd, uint32_t inst) {
+  int rs1 = BITS(inst, 19, 15);
+  if (rd == 0 && (rs1 == 1 || rs1 == 5)) {
+    ftrace_ret(pc);
+  } else if (rd == 1 || rd == 5) {
+    ftrace_call(pc, dest);
+  }
 }
 #endif

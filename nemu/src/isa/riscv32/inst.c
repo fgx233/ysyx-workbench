@@ -22,8 +22,8 @@
 #define Mr vaddr_read
 #define Mw vaddr_write
 
-void ftrace_call(paddr_t pc, paddr_t dest);
-void ftrace_ret(paddr_t pc);
+void call_check(paddr_t pc, paddr_t dest, int rd);
+void ret_check(paddr_t pc, paddr_t dest, int rd, uint32_t inst);
 
 enum {
   TYPE_I, TYPE_U, TYPE_S, TYPE_R, TYPE_J, TYPE_B,
@@ -72,14 +72,8 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 000 ????? 01000 11", sb     , S, Mw(src1 + imm, 1, src2));
   INSTPAT("0000000 ????? ????? 000 ????? 01100 11", add    , R, R(rd) = src1 + src2);
   INSTPAT("??????? ????? ????? 000 ????? 00100 11", addi   , I, R(rd) = src1 + imm);
-  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, R(rd) = s->snpc; s->dnpc = s->pc + imm;
-                                                                IFDEF(CONFIG_FTRACE, if (rd == 1 || rd == 5) ftrace_call(s->pc, s->dnpc)));
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, R(rd) = s->snpc; s->dnpc = ((src1 +imm) & ~1);
-                                                                IFDEF(CONFIG_FTRACE,  int rs1 = BITS(s->isa.inst, 19, 15);
-                                                                                      if (rd == 0 && (rs1 == 1 || rs1 == 5))
-                                                                                        ftrace_ret(s->pc);
-                                                                                      else if (rd == 1 || rd == 5)
-                                                                                        ftrace_call(s->pc, s->dnpc)));
+  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, R(rd) = s->snpc; s->dnpc = s->pc + imm; IFDEF(CONFIG_FTRACE, call_check(s->pc, s->dnpc, rd)));
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, R(rd) = s->snpc; s->dnpc = ((src1 +imm) & ~1); IFDEF(CONFIG_FTRACE, ret_check(s->pc, s->dnpc, rd, s->isa.inst)));
   INSTPAT("??????? ????? ????? 010 ????? 01000 11", sw     , S, Mw(src1 + imm, 4, src2));
   INSTPAT("??????? ????? ????? 010 ????? 00000 11", lw     , I, R(rd) = Mr(src1 + imm, 4));
   INSTPAT("0100000 ????? ????? 000 ????? 01100 11", sub    , R, R(rd) = src1 - src2);
