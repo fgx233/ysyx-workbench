@@ -37,11 +37,78 @@ int int_to_str(char *out, int num, int width, bool fill_zero) {
     }
   }
 
-  
+  while (i > 0) {
+    i--;
+    out[n++] = tmp[i];
+  }
+
+  return n;
+}
+
+int uint_to_str(char *out, unsigned int num, int width, bool fill_zero) {
+  int n = 0;
+
+  char tmp[11];
+  int i = 0;
+  while (num > 0) {
+    tmp[i++] = '0' + num % 10;
+    num /= 10;
+  }
+
+  if (i == 0) {
+    tmp[i++] = '0';
+  }
+
+  if (width != -1) {
+    int num_width = i;
+    while (num_width < width) {
+      if (fill_zero == true) {
+        out[n++] = '0';
+      } else {
+        out[n++] = ' ';
+      }
+      num_width++;
+    }
+  }
 
   while (i > 0) {
     i--;
     out[n++] = tmp[i];
+  }
+
+  return n;
+}
+
+int hex_to_str(char *out, unsigned int num, int width, bool fill_zero) {
+  int n = 0;
+
+  const char map[17] = "0123456789abcdef";
+  char temp[11];
+  int i = 0;
+  while (num > 0) {
+    temp[i++] = map[num % 16];
+    num /= 16;
+  }
+
+  if (i == 0) {
+    temp[i++] = map[0];
+  }
+
+  if (width != -1) {
+    int num_width = i;
+    while (num_width < width) {
+      if (fill_zero == true) {
+        out[n++] = '0';
+      } else {
+        out[n++] = ' ';
+      }
+      num_width++;
+    }
+  }
+
+  while (i > 0) {
+    i--;
+    out[n++] = temp[i];
   }
 
   return n;
@@ -112,6 +179,18 @@ int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
       } else if (fmt[p] == 'd') {
         int num = va_arg(ap, int);
         len += int_to_str(out + len, num, width, fill_zero);
+        p++;
+      } else if (fmt[p] == 'x') {
+        unsigned int num = va_arg(ap, unsigned int);
+        len += hex_to_str(out + len, num, width, fill_zero);
+        p++;
+      } else if (fmt[p] == 'u') {
+        unsigned int num = va_arg(ap, unsigned int);
+        len += uint_to_str(out + len, num, width, fill_zero);
+        p++;
+      } else if (fmt[p] == 'c') {
+        char c = (char)va_arg(ap, int);
+        out[len++] = c;
         p++;
       } else {
         panic("Not implemented");
