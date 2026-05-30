@@ -11,6 +11,6 @@
 !.gitignore
 !init.sh
 /fceux-am
-/am-kernels
 /docs/
 /nvboard
+/am-kernels
