@@ -178,7 +178,7 @@ static int cmd_d(char *args) {
 }
 
 static int cmd_test(char *args) {
-  FILE *fp = fopen("/home/fgx/ysyx-workbench/nemu/test/gen-expr/input", "r");
+  FILE *fp = fopen("/home/fgx/projects/ysyx-workbench/nemu/test/gen-expr/input", "r");
   if (fp == NULL) {
     printf("打开测试文件失败，请检查文件是否存在\n");
     return 0;
