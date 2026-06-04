@@ -98,4 +98,16 @@ new-test:
 		echo '#include <stdio.h>\n\nint main() {\n    printf("Hello $(NAME)!\\n");\n    return 0;\n}' > test/$(NAME)/$(NAME).c; \
 	fi
 
+# 统计代码行数：相比框架原状(pa0/before starting pa1)新增了多少非空代码行
+# 用 git grep 统计已跟踪的 .c/.h 文件，自动排除 build/ 等生成物
+# 可用 make count FRAMEWORK_REV=<其他提交> 覆盖框架基线
+FRAMEWORK_REV ?= 2338a93
+.PHONY: count
+count:
+	@cur=$$(git grep -I -c '[^[:space:]]' -- '*.c' '*.h' | awk -F: '{s+=$$NF} END{print s+0}'); \
+	base=$$(git grep -I -c '[^[:space:]]' $(FRAMEWORK_REV) -- '*.c' '*.h' | awk -F: '{s+=$$NF} END{print s+0}'); \
+	echo "当前 .c/.h 非空代码行数        : $$cur"; \
+	echo "框架基线 ($(FRAMEWORK_REV)) 非空行数 : $$base"; \
+	echo "你编写的代码行数 (差值)        : $$((cur - base))"
+
 
