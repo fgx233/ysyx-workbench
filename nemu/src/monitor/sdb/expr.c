@@ -92,24 +92,29 @@ static Token tokens[256] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 static bool make_token(char *e) {
-  int position = 0;
-  int i;
+  int position = 0;//匹配token的坐标
+  int i;//匹配正则规则的序号
   regmatch_t pmatch;
 
-  nr_token = 0;
+  nr_token = 0;//已录入token数量
 
   while (e[position] != '\0') {
+    //不断扫描原始字符串，直到结尾
     /* Try all rules one by one. */
     for (i = 0; i < NR_REGEX; i ++) {
+      //不断尝试每一条正则规则，i为正则规则数组的序号，NR_REGEX是规则数量
       if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
+        //若第i条规则匹配成功
         char *substr_start = e + position;
+        //这个token的字符串的起始位置
         int substr_len = pmatch.rm_eo;
+        //这个token的字符串的长度
 
         Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
             i, rules[i].regex, position, substr_len, substr_len, substr_start);
-
+        //记录匹配信息
         position += substr_len;
-
+        //将下一个匹配位置推进该次匹配长度
         /* TODO: Now a new token is recognized with rules[i]. Add codes
          * to record the token in the array `tokens'. For certain types
          * of tokens, some extra actions should be performed.
@@ -117,15 +122,20 @@ static bool make_token(char *e) {
         
 
         if (rules[i].token_type != TK_NOTYPE) {
-          tokens[nr_token].type = rules[i].token_type;//将匹配到的字符串类型写入对应的token元素的类型
-          int nr_write = snprintf(tokens[nr_token].str, sizeof(tokens[nr_token].str), "%.*s", substr_len, substr_start);//将匹配到的字符串全部写入token元素的字符串
-          if (nr_write >= sizeof(tokens[i].str) || nr_write < 0) {      //token读取正确性检测
+          //只要不是空格，就进行保存token信息的操作
+          tokens[nr_token].type = rules[i].token_type;
+          //将匹配到的字符串类型写入对应的token元素的类型
+          int nr_write = snprintf(tokens[nr_token].str, sizeof(tokens[nr_token].str), "%.*s", substr_len, substr_start);
+          //将匹配到的字符串全部写入token元素的字符串
+          if (nr_write >= sizeof(tokens[i].str) || nr_write < 0) {      
+            //token读取正确性检测
             printf("token有错误或过长:%.*s\n", substr_len, substr_start);
             return false;
           }
           nr_token++;
-          break;
-        }        
+        }
+        break;
+        //跳出本轮正则匹配        
       }
     }
 
@@ -133,13 +143,14 @@ static bool make_token(char *e) {
       printf("no match at position %d\n%s\n%*.s^\n", position, e, position, "");
       return false;
     }
+    //如果出现了没有一个符合的情况，返回错误，指出当前的token类型无法识别。
   }
 
 	//识别指针解引用与乘法
 	if (tokens[0].type == '*') {
 		tokens[0].type = TK_DREF;
 	}
-
+  //若第一个token是*，那它一定不是乘法
 	for (int i = 1; i < nr_token; i ++) {
 		if (tokens[i].type == '*' && (tokens[i - 1].type == ')' || 
                                   tokens[i - 1].type == TK_HEX || 
@@ -149,11 +160,13 @@ static bool make_token(char *e) {
 			tokens[i].type = TK_DREF; 
 		}
 	}
+  //若*前面是一个合法的数，那么就保持乘法不变，若不是，则定义为解引用
 
 	//识别负号与减法
 	if (tokens[0].type == '-') {
 		tokens[0].type = TK_MINUS;
 	}
+  //若第一个token是-，那它一定不是减法
 
 	for (int i = 1; i < nr_token; i ++) {
 		if (tokens[i].type == '-' && (tokens[i - 1].type == ')' || tokens[i - 1].type == TK_HEX || tokens[i - 1].type == TK_DEC)) {
@@ -162,6 +175,7 @@ static bool make_token(char *e) {
 			tokens[i].type = TK_MINUS; 
 		}
 	}
+  //若-前面是一个合法的数，那么就保持减法不变，若不是，则定义为取负
 
   return true;
 }
