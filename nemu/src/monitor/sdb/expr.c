@@ -110,8 +110,8 @@ static bool make_token(char *e) {
         int substr_len = pmatch.rm_eo;
         //这个token的字符串的长度
 
-        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+            i, rules[i].regex, position, substr_len, substr_len, substr_start);
         //记录匹配信息
         position += substr_len;
         //将下一个匹配位置推进该次匹配长度

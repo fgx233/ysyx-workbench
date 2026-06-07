@@ -104,18 +104,23 @@ static int cmd_x(char *args) {
   }
   
   int n = 0;
-  char str[256] = {0};
+  char *p = strtok(args, " ");
+  if (sscanf(p, "%d", &n) != 1) {
+    printf("错误的个数：%s\n", p);
+    return 0;
+  }
 
-  if (sscanf(args, "%d %s", &n, str) != 2) {
-    printf("错误的参数：%s\n", args);
+  p = strtok(NULL, "");
+  if (p == NULL) {
+    printf("无有效表达式\n");
     return 0;
   }
 
   bool success = true;
-  word_t result = expr(str, &success);
+  word_t result = expr(p, &success);
 
   if (success == false) {
-    printf("表达式求值错误：%s\n", str);
+    printf("表达式求值错误：%s\n", p);
     return 0;
   }
 
