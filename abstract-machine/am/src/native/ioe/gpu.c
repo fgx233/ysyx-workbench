@@ -3,12 +3,12 @@
 #include <fenv.h>
 
 //#define MODE_800x600
-#define WINDOW_W 800
-#define WINDOW_H 600
+#define WINDOW_W 1024
+#define WINDOW_H 1024
 #ifdef MODE_800x600
 const int disp_w = WINDOW_W, disp_h = WINDOW_H;
 #else
-const int disp_w = 400, disp_h = 300;
+const int disp_w = 256, disp_h = 256;
 #endif
 
 #define FPS   60
