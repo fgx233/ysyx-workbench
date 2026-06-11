@@ -104,6 +104,35 @@ void *memcpy(void *out, const void *in, size_t n) {
   return out;
 }
 
+// void *memcpy(void *dest, const void *src, size_t n)
+// {
+//     uint8_t *d = dest;
+//     const uint8_t *s = src;
+
+//     // 仅当两者对齐方式一致时才能按字复制
+//     if (((uint32_t)d % sizeof(uint32_t)) == ((uint32_t)s % sizeof(uint32_t))) {
+//         // 先复制到对齐边界
+//         while (n && ((uint32_t)d % sizeof(uint32_t))) {
+//             *d++ = *s++;
+//             n--;
+//         }
+//         // 按字复制
+//         uint32_t *dw = (uint32_t *)d;
+//         const uint32_t *sw = (const uint32_t *)s;
+//         while (n >= sizeof(uint32_t)) {
+//             *dw++ = *sw++;
+//             n -= sizeof(uint32_t);
+//         }
+//         d = (uint8_t *)dw;
+//         s = (const uint8_t *)sw;
+//     }
+//     // 复制剩余字节
+//     while (n--) {
+//         *d++ = *s++;
+//     }
+//     return dest;
+// }
+
 int memcmp(const void *s1, const void *s2, size_t n) {
   const unsigned char *ps1 = s1;
   const unsigned char *ps2 = s2;
