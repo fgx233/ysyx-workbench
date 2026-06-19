@@ -1,45 +1,35 @@
-TOP = top
-BIN = sim
+BUILD_DIR = ./build
 
-WAVE = wave.fst
+test:
+	mill -i test
 
-BUILD_DIR = build
-CSRCS = $(shell find ./csrc -name "*.cpp")
-VSRCS = $(shell find ./vsrc -name "*.v")
+verilog:
+	$(call git_commit, "generate verilog")
+	mkdir -p $(BUILD_DIR)
+	mill -i runMain Elaborate --target-dir $(BUILD_DIR)
 
-VCC = verilator
-CFLAGS = -I$(BUILD_DIR) -I$(VERILATOR_ROOT)/include
-LINKAGES = $(BUILD_DIR)/libV$(TOP).a $(BUILD_DIR)/libverilated.a -lz -lpthread
+help:
+	mill -i runMain Elaborate --help
 
-VERILATOR_ROOT = $(shell $(VCC) --getenv VERILATOR_ROOT)
+reformat:
+	mill -i __.reformat
 
-all: $(BUILD_DIR)/$(BIN)
-	
-lint:
-	$(VCC) --lint-only -Wall $(VSRCS)
+checkformat:
+	mill -i __.checkFormat
 
-head: $(BUILD_DIR)/libV$(TOP).a
+bsp:
+	mill -i mill.bsp.BSP/install
 
-sim: all
-	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-	@echo "Write this Makefile by your self."
-	./$(BUILD_DIR)/$(BIN)
-
-wave: $(WAVE)
-	gtkwave $(WAVE)
-
-$(WAVE): $(BUILD_DIR)/$(BIN)
-	./$(BUILD_DIR)/$(BIN)
-
-$(BUILD_DIR)/$(BIN): $(CSRCS) $(BUILD_DIR)/libV$(TOP).a
-	g++ $(CFLAGS) $(CSRCS) $(LINKAGES) -o $(BUILD_DIR)/$(BIN)
-
-$(BUILD_DIR)/libV$(TOP).a: $(VSRCS)
-	$(VCC) --cc --build --trace-fst -Wall --Mdir $(BUILD_DIR) $(VSRCS) --top-module $(TOP)
+idea:
+	mill -i mill.idea.GenIdea/idea
 
 clean:
-	rm -rf $(BUILD_DIR) $(WAVE)
+	-rm -rf $(BUILD_DIR)
 
-.PHONY: all lint head run wave clean
+.PHONY: test verilog help reformat checkformat clean
 
-include ../Makefile
+sim:
+	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
+	@echo "Write this Makefile by yourself."
+
+-include ../Makefile
