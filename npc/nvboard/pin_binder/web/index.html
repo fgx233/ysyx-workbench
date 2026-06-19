@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>NVBoard 引脚绑定器</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="topbar">
+  <span class="logo">NVBoard 引脚绑定器</span>
+  <span id="proj-info" class="muted"></span>
+  <span class="spacer"></span>
+  <button id="btn-undo" title="撤销 (Ctrl+Z)">⟲ 撤销</button>
+  <button id="btn-redo" title="重做 (Ctrl+Shift+Z)">⟳ 重做</button>
+  <button id="btn-clear" title="清除全部绑定">清空</button>
+  <button id="btn-save" class="primary">保存 nxdc<span id="dirty-dot" hidden> ●</span></button>
+</header>
+
+<main id="main">
+  <aside id="ports-pane">
+    <div class="pane-title">top 模块端口</div>
+    <div id="port-list"></div>
+    <div class="pane-foot">clk / rst 由仿真环境驱动，无需绑定</div>
+  </aside>
+
+  <section id="board-pane">
+    <div id="board"></div>
+  </section>
+
+  <aside id="side-pane">
+    <section class="side-section" id="sug-section">
+      <div class="side-title">连接建议 <span id="sug-count" class="badge"></span>
+        <button id="btn-accept-all" class="mini primary">全部接受</button>
+      </div>
+      <div id="sug-list"></div>
+    </section>
+
+    <section class="side-section" id="inspector-section">
+      <div class="side-title">检查器</div>
+      <div id="inspector"><div class="muted pad8">点击端口、连线或引脚查看详情</div></div>
+    </section>
+
+    <section class="side-section grow" id="preview-section">
+      <div class="side-title">top.nxdc 实时预览</div>
+      <pre id="preview" class="muted">…</pre>
+    </section>
+  </aside>
+
+  <svg id="wires"></svg>
+</main>
+
+<footer id="status">加载中…</footer>
+<div id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

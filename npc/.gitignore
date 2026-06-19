@@ -11,6 +11,8 @@
 !.gitignore
 !.scalafmt.conf
 !README.md
+!*.nxdc
+!*.yml
 build/
 
 # mill
@@ -21,3 +23,13 @@ out/
 .idea/
 .idea_modules/
 test_run_dir/
+
+# 综合产物
+/syn_result/
+
+# nvboard: 未使用的 vsrc 残留
+/nvboard/vsrc/
+
+# nvboard: pin_binder 整个目录都要，排掉缓存
+!/nvboard/pin_binder/**
+/nvboard/pin_binder/__pycache__/
