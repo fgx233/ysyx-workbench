@@ -46,7 +46,7 @@ $(OBJ_DIR)/%.o: $(CSRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(SV_LIB): $(VSRCS)
-	$(VCC) --cc --build --trace-fst -Wall --Mdir $(BUILD_DIR) $(VSRCS) --top-module $(TOP)
+	$(VCC) --cc --build --trace-fst -Wall -Wno-UNUSEDSIGNAL --Mdir $(BUILD_DIR) $(VSRCS) --top-module $(TOP)
 
 -include $(DEPS)
 
