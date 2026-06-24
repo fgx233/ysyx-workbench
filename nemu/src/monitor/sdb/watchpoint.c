@@ -154,7 +154,7 @@ void check_wp() {
     p = p->next;
   }
 
-  if (flag == true && nemu_state.state != NEMU_END) {
+  if (flag == true && nemu_state.state == NEMU_RUNNING) {
     set_nemu_state(NEMU_STOP, cpu.pc, 0);
   }
 }

@@ -99,6 +99,10 @@ static bool make_token(char *e) {
   nr_token = 0;//已录入token数量
 
   while (e[position] != '\0') {
+    //若超过最大录入token数，直接返回词法分析失败。
+    if (nr_token >= 255) {
+      return false;
+    }
     //不断扫描原始字符串，直到结尾
     /* Try all rules one by one. */
     for (i = 0; i < NR_REGEX; i ++) {
@@ -169,7 +173,10 @@ static bool make_token(char *e) {
   //若第一个token是-，那它一定不是减法
 
 	for (int i = 1; i < nr_token; i ++) {
-		if (tokens[i].type == '-' && (tokens[i - 1].type == ')' || tokens[i - 1].type == TK_HEX || tokens[i - 1].type == TK_DEC)) {
+		if (tokens[i].type == '-' && (tokens[i - 1].type == ')' || 
+                                  tokens[i - 1].type == TK_HEX || 
+                                  tokens[i - 1].type == TK_DEC ||
+                                  tokens[i - 1].type == TK_REG)) {
 			continue;
 		} else if (tokens[i].type == '-') {
 			tokens[i].type = TK_MINUS; 
