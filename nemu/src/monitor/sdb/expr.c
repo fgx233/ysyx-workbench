@@ -114,8 +114,8 @@ static bool make_token(char *e) {
         int substr_len = pmatch.rm_eo;
         //这个token的字符串的长度
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
         //记录匹配信息
         position += substr_len;
         //将下一个匹配位置推进该次匹配长度
@@ -273,6 +273,7 @@ void print_err(int type, int error_num, ...) {
   default:  printf("错误打印函数接收了错误的参数\n");
             return;
   }
+  va_end(ptr);
   return;
 }
 
@@ -447,7 +448,7 @@ word_t eval(int p, int q, bool *success) {
                 printf("\n");
                 return 0;
               }
-              return (sword_t)val1 / (sword_t)val2;
+              return val1 / val2;
     case TK_AND: return val1 && val2;
     case TK_OR:  return val1 || val2;
     case TK_EQ:  return val1 == val2;

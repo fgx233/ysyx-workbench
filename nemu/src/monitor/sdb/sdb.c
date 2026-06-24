@@ -145,7 +145,7 @@ static int cmd_p(char *args) {
     printf("运算出现错误，请重新检查输入\n");
     return 0;
   } else {
-    printf("计算结果是:" FMT_SWORD "\n", res);
+    printf("计算结果是:" FMT_UWORD "\n", res);
     printf("计算结果是:" FMT_WORD "\n", res);
     return 0;
   }
@@ -184,13 +184,13 @@ static int cmd_d(char *args) {
 }
 
 static int cmd_test(char *args) {
-  FILE *fp = fopen("/home/fgx/projects/ysyx-workbench/nemu/test/gen-expr/input", "r");
+  FILE *fp = fopen("/home/fgx/projects/ysyx-workbench/nemu/tools/gen-expr/build/input", "r");
   if (fp == NULL) {
     printf("打开测试文件失败，请检查文件是否存在\n");
     return 0;
   }
 
-  char str[256] = {0};
+  char str[256 + 10] = {0};
 
   int total_check = 0;
   int err_num = 0;
@@ -200,21 +200,31 @@ static int cmd_test(char *args) {
     total_check++;
 
     word_t expect_result = 0;
-    char expression[256] = {0};
+    // char expression[256] = {0};
 
-    sscanf(str, "%u %s", &expect_result, expression);
+    sscanf(str, "%u", &expect_result);
+    
+    char *first_space = str;
+    while (*first_space++ != ' ') { }
+
+    char *p = first_space;
+    while (*p != '\n') {
+      p++;
+    }
+    *p = '\0';
+
     bool success = true;
-    word_t my_result = expr(expression, &success);
+    word_t my_result = expr(first_space, &success);
 
     if (success == false) {
       err_num++;
-      printf("求值出错：%s\n", expression);
+      printf("求值出错：%s\n", first_space);
       printf("------------------------------------------\n");
     } else if (my_result != expect_result) {
       err_num++;
-      printf("错误表达式：%s\n", expression);
-      printf("期望值：" FMT_SWORD "\n", expect_result);
-      printf("实际值：" FMT_SWORD "\n", my_result);
+      printf("错误表达式：%s\n", first_space);
+      printf("期望值：" FMT_UWORD "\n", expect_result);
+      printf("实际值：" FMT_UWORD "\n", my_result);
       printf("------------------------------------------\n");
     }
 

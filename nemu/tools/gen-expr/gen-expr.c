@@ -24,6 +24,7 @@
 
 // this should be enough
 static char buf[MAX] = {};
+static char buf_for_nemu[MAX] = {};
 static char code_buf[65536 + 128] = {}; // a little larger than `buf`
 static char *code_format =
 "#include <stdio.h>\n"
@@ -34,6 +35,7 @@ static char *code_format =
 "}";
 
 int total_size = 0;
+int total_size_for_nemu = 0;
 int deep = 0;
 
 
@@ -41,11 +43,19 @@ static uint32_t choose(int x) {
   return (uint32_t)(rand() % x);
 }
 
+
+
 static void gen_num() {
   uint32_t num = rand();
 
-  int n = snprintf(buf + total_size, MAX - total_size, "%u", num);
+  int n = snprintf(buf + total_size, MAX - total_size, "%uU", num);
+
+  int m = snprintf(buf_for_nemu + total_size_for_nemu, MAX - total_size_for_nemu, "%u", num);
+
   total_size += n;
+
+  total_size_for_nemu += m;
+
   if (total_size >= MAX) {
     printf("超出了数组最大长度\n");
   }
@@ -62,7 +72,13 @@ static void gen_rand_op() {
   }
 
   int n = snprintf(buf + total_size, MAX - total_size, "%c", op);
+
+  int m = snprintf(buf_for_nemu + total_size_for_nemu, MAX - total_size_for_nemu, "%c", op);
+  
   total_size += n;
+
+  total_size_for_nemu += m;
+
   if (total_size >= MAX) {
     printf("超出了数组最大长度\n");
   }
@@ -70,23 +86,39 @@ static void gen_rand_op() {
 
 static void gen(char a) {
   int n = snprintf(buf + total_size, MAX - total_size, "%c", a);
+
+  int m = snprintf(buf_for_nemu + total_size_for_nemu, MAX - total_size_for_nemu, "%c", a);
+
   total_size += n;
+
+  total_size_for_nemu += m;
+
   if (total_size >= MAX) {
     printf("超出了数组最大长度\n");
   }
 }
 
+static void gen_space() {
+  int space_num = choose(4);
+  for (int i = 0; i < space_num; i ++) {
+    gen(' ');
+  }
+}
+
 static void gen_rand_expr() {
   deep++;
-  if (deep >= 7) {
+  if (total_size >= 100 ||deep >= 7) {
     gen_num();
     return;
   }
+
+
+  
   switch (choose(3))
   {
-  case 0: gen_num(); break;
-  case 1: gen('('); gen_rand_expr(); gen(')'); break;
-  default:gen_rand_expr(); gen_rand_op(); gen_rand_expr(); break;
+  case 0: gen_space(); gen_num(); gen_space(); break;
+  case 1: gen_space(); gen('('); gen_space(); gen_rand_expr(); gen_space(); gen(')'); gen_space();break;
+  default:gen_space(); gen_rand_expr(); gen_space(); gen_rand_op(); gen_space(); gen_rand_expr(); gen_space();break;
   }
 }
 
@@ -102,6 +134,7 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < loop; i ++) {
 
     total_size = 0;
+    total_size_for_nemu = 0;
     deep = 0;
     gen_rand_expr();
 
@@ -118,11 +151,11 @@ int main(int argc, char *argv[]) {
     fp = popen("/tmp/.expr", "r");
     assert(fp != NULL);
 
-    int result;
-    ret = fscanf(fp, "%d", &result);
+    uint32_t result;
+    ret = fscanf(fp, "%u", &result);
     pclose(fp);
 
-    printf("%u %s\n", result, buf);
+    printf("%u %s\n", result, buf_for_nemu);
   }
   return 0;
 }
