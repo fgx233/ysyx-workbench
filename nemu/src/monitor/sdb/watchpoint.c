@@ -136,7 +136,10 @@ void check_wp() {
     word_t new = expr(p->expr, &success);
     if (success == false) {
       printf("监视点求值出错:NO=%d, Expr=%s\n", p->NO, p->expr);
-      set_nemu_state(NEMU_STOP, cpu.pc, 0);
+      if (nemu_state.state == NEMU_RUNNING) {
+        set_nemu_state(NEMU_STOP, cpu.pc, 0);
+      }
+      
       return;
     }
 

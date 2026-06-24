@@ -334,7 +334,7 @@ int find_op(int p, int q) {
       case TK_EQ: case TK_NEQ: new_class = THREE; break;
       case '+': case '-': new_class = FOUR;break;
       case '*': case '/': new_class = FIVE;break;
-      case TK_MINUS: new_class = SIX; break;
+      case TK_MINUS:
       case TK_DREF: new_class = SEVEN; break;
       default: new_class = EIGHT;
     }
