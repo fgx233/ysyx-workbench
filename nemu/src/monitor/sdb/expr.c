@@ -34,7 +34,7 @@ enum OP_CLASS {
 };
 
 enum ERR_TYPE {
-  OVER, NUM, BRACKET, OP, DIV, UNKNOWN, REG, DEREF, MINUS
+  OVER, NUM, BRACKET, OP, DIV, UNKNOWN, REG, DEREF, MINUS, OUT_OF_ADDR
 };
 
 static struct rule {
@@ -265,6 +265,11 @@ void print_err(int type, int error_num, ...) {
             printf("%*s%c\n", p2_len - p1_len - 1, "", '^');
             printf("deref, 指针解引用时，地址计算出错\n");
             break;
+  case OUT_OF_ADDR:
+            printf("%*s%c", p1_len, "", '^');
+            printf("%*s%c\n", p2_len - p1_len - 1, "", '^');
+            printf("deref, 指针解引用时，地址越界\n");
+            break;
   case MINUS:
             printf("%*s%c", p1_len, "", '^');
             printf("%*s%c\n", p2_len - p1_len - 1, "", '^');
@@ -414,7 +419,14 @@ word_t eval(int p, int q, bool *success) {
         print_err(DEREF, 2, op + 1, q);
         return 0;
       }
-      return paddr_read(val2, 4);
+
+      if (val2 + 3 - CONFIG_MBASE < CONFIG_MSIZE) {
+        return paddr_read(val2, 4);
+      } else {
+        *success = false;
+        print_err(OUT_OF_ADDR, 2, op + 1, q);
+      }
+      
     }
 
     if (tokens[op].type == TK_MINUS) {

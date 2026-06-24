@@ -105,9 +105,8 @@ static void gen_space() {
   }
 }
 
-static void gen_rand_expr() {
-  deep++;
-  if (total_size >= 100 ||deep >= 7) {
+static void gen_rand_expr(int deepth) {
+  if (total_size >= 100 ||deepth >= 7) {
     gen_num();
     return;
   }
@@ -117,8 +116,8 @@ static void gen_rand_expr() {
   switch (choose(3))
   {
   case 0: gen_space(); gen_num(); gen_space(); break;
-  case 1: gen_space(); gen('('); gen_space(); gen_rand_expr(); gen_space(); gen(')'); gen_space();break;
-  default:gen_space(); gen_rand_expr(); gen_space(); gen_rand_op(); gen_space(); gen_rand_expr(); gen_space();break;
+  case 1: gen_space(); gen('('); gen_space(); gen_rand_expr(deepth + 1); gen_space(); gen(')'); gen_space();break;
+  default:gen_space(); gen_rand_expr(deepth + 1); gen_space(); gen_rand_op(); gen_space(); gen_rand_expr(deepth + 1); gen_space();break;
   }
 }
 
@@ -136,7 +135,7 @@ int main(int argc, char *argv[]) {
     total_size = 0;
     total_size_for_nemu = 0;
     deep = 0;
-    gen_rand_expr();
+    gen_rand_expr(0);
 
     sprintf(code_buf, code_format, buf);
 

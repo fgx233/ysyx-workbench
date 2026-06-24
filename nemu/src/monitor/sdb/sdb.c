@@ -126,8 +126,13 @@ static int cmd_x(char *args) {
   }
 
   for (int i = 0; i < n; i++) {
-    printf(FMT_PADDR ": " FMT_WORD "\n", result, paddr_read(result, 4));
-    result += 4;
+    if (result + 3 - CONFIG_MBASE < CONFIG_MSIZE) {
+      printf(FMT_PADDR ": " FMT_WORD "\n", result, paddr_read(result, 4));
+      result += 4;
+    } else {
+      printf("地址：" FMT_PADDR "越界\n", result);
+      result += 4;
+    }
   }
   return 0;
 }
