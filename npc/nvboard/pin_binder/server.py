@@ -172,13 +172,19 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, {"ok": False, "errors": errors})
             return
         text = core.emit_nxdc(state["top"], binds, state["ports"])
+        quit_after = write and bool(body.get("quit"))
         if write:
             path = state["nxdc_path"]
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w") as f:
                 f.write(text)
         self._send(200, {"ok": True, "text": text,
-                         "path": state["nxdc"] if write else None})
+                         "path": state["nxdc"] if write else None,
+                         "shutdown": quit_after})
+        # 先把响应发回浏览器，再延迟关闭服务器（self.server 即 main 里的
+        # ThreadingHTTPServer，shutdown 会让 serve_forever 正常返回）
+        if quit_after:
+            threading.Timer(0.5, self.server.shutdown).start()
 
 
 def main():
@@ -222,6 +228,9 @@ def main():
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n已退出")
+    else:
+        # serve_forever 正常返回 = 网页点了"保存并退出"触发 shutdown
+        print("已保存并退出")
 
 
 if __name__ == "__main__":

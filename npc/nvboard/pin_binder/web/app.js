@@ -692,23 +692,35 @@ function acceptSuggestion(sig) {
   renderAll();
 }
 
-async function save() {
+async function save(quit = false) {
   try {
     const r = await fetch("/api/save", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ binds: S.binds }),
+      body: JSON.stringify({ binds: S.binds, quit }),
     });
     const d = await r.json();
     if (d.ok) {
       S.savedJson = JSON.stringify(S.binds);
       updateDirty();
-      toast(`已保存到 ${d.path}`, "ok");
+      if (d.shutdown) onShutdown(d.path);
+      else toast(`已保存到 ${d.path}`, "ok");
     } else {
       toast("保存失败：" + d.errors[0], "err");
     }
   } catch (e) {
     toast("保存失败：" + e, "err");
   }
+}
+
+// 服务器已被"保存并退出"关闭：禁用全部操作，提示用户页面已失效
+function onShutdown(path) {
+  for (const id of ["btn-undo", "btn-redo", "btn-clear", "btn-save",
+                    "btn-save-quit", "btn-accept-all"]) {
+    const el = $("#" + id);
+    if (el) el.disabled = true;
+  }
+  $("#status").textContent = `已保存到 ${path}，服务器已关闭，可关闭此页面`;
+  toast("已保存，服务器已关闭，可关闭此页面", "ok");
 }
 
 /* ============================== 事件绑定 ============================== */
@@ -795,7 +807,8 @@ function bindEvents() {
   });
   $("#btn-undo").addEventListener("click", undo);
   $("#btn-redo").addEventListener("click", redo);
-  $("#btn-save").addEventListener("click", save);
+  $("#btn-save").addEventListener("click", () => save(false));
+  $("#btn-save-quit").addEventListener("click", () => save(true));
   $("#btn-clear").addEventListener("click", () => {
     if (!S.binds.length) return;
     pushHistory();
