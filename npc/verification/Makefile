@@ -3,8 +3,8 @@ TOP = top
 
 CXX = g++
 VCC = verilator
-CXXFLAGS = -I$(BUILD_DIR) -I$(VERILATOR_ROOT)/include -Iinclude -MMD -MP
-LINKAGES = $(BUILD_DIR)/libV$(TOP).a $(BUILD_DIR)/libverilated.a -lz -lpthread -llz4
+CXXFLAGS = -I$(BUILD_DIR) -I$(VERILATOR_ROOT)/include -I$(VERILATOR_ROOT)/include/vltstd -Iinclude -MMD -MP -D__GUEST_ISA__=riscv32e -Wall -g
+LINKAGES = $(BUILD_DIR)/libV$(TOP).a $(BUILD_DIR)/libverilated.a -lz -lpthread -llz4 -lreadline
 
 BUILD_DIR := build
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -20,7 +20,11 @@ VSRCS := $(shell find $(abspath $(VSRC_DIR)) -name '*.sv')
 OBJS := $(patsubst $(CSRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CSRCS))
 SV_LIB := $(BUILD_DIR)/libV$(TOP).a
 DEPS := $(OBJS:.o=.d)
-WAVE_FILE = wave.fst
+WAVE_FILE = $(BUILD_DIR)/wave.fst
+
+ARGS ?= --log=$(BUILD_DIR)/npc-log.txt
+
+NPC_EXEC := $(TARGET) $(ARGS) --wave=$(WAVE_FILE) $(IMG) 
 
 all: $(TARGET)
 
@@ -28,7 +32,7 @@ wave:
 	gtkwave $(BUILD_DIR)/$(WAVE_FILE)
 
 sim: $(TARGET)
-	./$(TARGET)
+	$(NPC_EXEC)
 
 head: $(SV_LIB)
 

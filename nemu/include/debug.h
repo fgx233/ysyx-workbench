@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <utils.h>
 
+void assert_fail_msg();
+
 #define Log(format, ...) \
     _Log(ANSI_FMT("[%s:%d %s] " format, ANSI_FG_BLUE) "\n", \
         __FILE__, __LINE__, __func__, ## __VA_ARGS__)

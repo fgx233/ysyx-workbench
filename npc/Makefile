@@ -36,7 +36,7 @@ head:
 
 sim:
 	$(call git_commit, "verify verilog")
-	$(MAKE) -C verification sim
+	$(MAKE) -C verification sim  $(if $(ARGS),ARGS="$(ARGS)") IMG="$(IMG)"
 
 wave:
 	$(call git_commit, "watch wave")

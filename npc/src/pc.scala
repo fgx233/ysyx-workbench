@@ -1,14 +1,17 @@
 import chisel3._
 
-class pc extends Module {
-  val next_pc = IO(Input(UInt(4.W)))//写pc地址数据
-  val curr_pc = IO(Output(UInt(4.W)))//pc寄存器存储的地址
+class Pc extends Module {
+  val wdata = IO(Input(UInt(32.W)))    //  写pc数据
+  val wen   = IO(Input(Bool()))       //  写pc使能
+  val rdata = IO(Output(UInt(32.W)))   //  读pc数据
 
   //pc寄存器
-  val pc_reg = RegInit(0.U(4.W))
+  val pcReg = RegInit("h8000_0000".U(32.W))
 
 
-  pc_reg := next_pc
+  when (wen) {
+    pcReg := wdata
+  }
   
-  curr_pc := pc_reg
+  rdata := pcReg
 }
