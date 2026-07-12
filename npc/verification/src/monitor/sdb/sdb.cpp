@@ -229,6 +229,29 @@ static int cmd_test(char *args) {
   return 0;
 }
 
+static int cmd_set(char *args) {
+  if (args == NULL) {
+    printf("请输入要设置的内存以及数值\n");
+    return 0;
+  }
+
+  vaddr_t addr;
+  word_t data;
+
+  if (sscanf(args, SCN_WORD " " SCN_WORD, &addr, &data) != 2) {
+    printf("参数录入失败，请重新输入：%s\n", args);
+    return 0;
+  }
+
+  if (addr - CONFIG_MBASE > CONFIG_MSIZE - 4) {   // addr < MBASE 时回绕成大数,同样被拒
+    printf("地址越界：addr = " FMT_PADDR "\n", addr);
+    return 0;
+  }
+
+  paddr_write(addr, 4, data);
+  return 0;
+}
+
 static struct {
   const char *name;
   const char *description;
@@ -244,6 +267,7 @@ static struct {
   { "p", "calculate the expr", cmd_p},
   { "w", "add new watchpoint", cmd_w},
   { "d", "delete watchpoint", cmd_d},
+  { "set", "set the addr in memory by data", cmd_set },
 
   /* TODO: Add more commands */
 
