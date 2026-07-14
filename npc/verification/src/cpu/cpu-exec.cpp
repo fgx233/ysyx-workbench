@@ -1,6 +1,7 @@
 #include "common.hpp"
 #include "utils.hpp"  
 #include "cpu.hpp"
+#include "sdb.hpp"
 #include <Vtop.h>
 #include <verilated_fst_c.h>
 #include "Vtop___024root.h"
@@ -82,6 +83,10 @@ void npc_sync() {
   npc.gpr[15] = r->top__DOT__regs__DOT__regs_15;
 }
 
+static void trace_and_difftest() {
+  check_wp();
+}
+
 // 执行一次npc
 static void exec_once() {
   tick();
@@ -92,6 +97,7 @@ static void exec_once() {
 static void execute(uint64_t n) {
   for (;n > 0; n --) {
     exec_once();
+    trace_and_difftest();
     if (npc_state.state != NPC_RUNNING) break;
   }
 }
