@@ -69,6 +69,7 @@ void init_ftrace(const char *elf_flie) {
       funcs[ind].addr = sym_section[i].st_value;
       funcs[ind].size = sym_section[i].st_size;
       strncpy(funcs[ind].name, str_section + sym_section[i].st_name, 63);
+      funcs[ind].name[63] = '\0';
       ind++;
     }
   }

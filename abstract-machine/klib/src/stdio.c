@@ -212,6 +212,17 @@ static void get_str_from_dec_helper(char **dst, int dec) {
   }
 }
 
+static void get_str_from_udec_helper(char **dst, unsigned int dec) {
+  if (dec < 10) {
+    **dst = dec + '0';
+    (*dst)++;
+  } else {
+    get_str_from_udec_helper(dst, dec / 10);
+    **dst = dec % 10 + '0';
+    (*dst)++; 
+  }
+}
+
 static void get_str_from_dec(char *dst, int dec) {
   if (dec == 0) {
     *dst++ = '0';
@@ -239,6 +250,17 @@ static void get_str_from_dec(char *dst, int dec) {
     dec = -dec;
   }
   get_str_from_dec_helper(&dst, dec);
+  *dst = '\0';
+}
+
+static void get_str_from_udec(char *dst, unsigned int dec) {
+  if (dec == 0) {
+    *dst++ = '0';
+    *dst = '\0';
+    return;
+  }
+  
+  get_str_from_udec_helper(&dst, dec);
   *dst = '\0';
 }
 
@@ -413,6 +435,11 @@ int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
         int dec = va_arg(ap, int);
         get_str_from_dec(dec_str, dec);
         write_str(&dst_buf, dec_str, &lens, n, is_fill_zero, min_width, dec < 0); 
+      } else if (*scan_pointer == 'u') {
+        char udec_str[11] = {0};
+        unsigned int udec = va_arg(ap, unsigned int);
+        get_str_from_udec(udec_str, udec);
+        write_str(&dst_buf, udec_str, &lens, n, is_fill_zero, min_width, false); 
       } else if (*scan_pointer == 'x') {
         char hex_str[12] = {0};
         unsigned int hex = va_arg(ap, unsigned int);
