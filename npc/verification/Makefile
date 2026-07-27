@@ -31,7 +31,7 @@ all: $(TARGET)
 wave: 
 	gtkwave $(BUILD_DIR)/$(WAVE_FILE)
 
-sim: $(TARGET)
+run: $(TARGET)
 	$(NPC_EXEC)
 
 head: $(SV_LIB)
@@ -54,4 +54,4 @@ $(SV_LIB): $(VSRCS)
 
 -include $(DEPS)
 
-.PHONY: all head sim wave clean
+.PHONY: all head run wave clean

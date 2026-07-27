@@ -34,9 +34,9 @@ head:
 	$(call git_commit, "get model")
 	$(MAKE) -C verification head
 
-sim:
+run:
 	$(call git_commit, "verify verilog")
-	$(MAKE) -C verification sim  $(if $(ARGS),ARGS="$(ARGS)") IMG="$(IMG)"
+	$(MAKE) -C verification run  $(if $(ARGS),ARGS="$(ARGS)") IMG="$(IMG)"
 
 wave:
 	$(call git_commit, "watch wave")
@@ -68,5 +68,5 @@ sta:
 	$(call git_commit, "make sta")
 	$(MAKE) -C $(YOSYS_PATH) $(SYN_VARS) sta
 
-.PHONY: test verilog help reformat checkformat clean head sim wave board link syn sta
+.PHONY: test verilog help reformat checkformat clean head run wave board link syn sta
 -include ../Makefile

@@ -22,8 +22,8 @@
 #define Mr vaddr_read
 #define Mw vaddr_write
 
-void call_check(paddr_t pc, paddr_t dest, int rd);
-void ret_check(paddr_t pc, paddr_t dest, int rd, uint32_t inst);
+void jal_check(paddr_t pc, paddr_t dest, int rd);
+void jalr_check(paddr_t pc, paddr_t dest, int rd, uint32_t inst);
 
 enum {
   TYPE_I, TYPE_U, TYPE_S, TYPE_R, TYPE_J, TYPE_B,
@@ -120,8 +120,8 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 111 ????? 11000 11", bgeu   , B, if (src1 >= src2) s->dnpc = s->pc + imm);
 
   /* 无条件跳转 (jump) */
-  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, R(rd) = s->snpc; s->dnpc = s->pc + imm; IFDEF(CONFIG_FTRACE, call_check(s->pc, s->dnpc, rd)));
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, R(rd) = s->snpc; s->dnpc = ((src1 +imm) & ~1); IFDEF(CONFIG_FTRACE, ret_check(s->pc, s->dnpc, rd, s->isa.inst)));
+  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, R(rd) = s->snpc; s->dnpc = s->pc + imm; IFDEF(CONFIG_FTRACE, jal_check(s->pc, s->dnpc, rd)));
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, R(rd) = s->snpc; s->dnpc = ((src1 +imm) & ~1); IFDEF(CONFIG_FTRACE, jalr_check(s->pc, s->dnpc, rd, s->isa.inst)));
 
   /* 乘除运算 (RV32M) */
   INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , R, R(rd) = src1 * src2);

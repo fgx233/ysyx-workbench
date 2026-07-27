@@ -106,17 +106,27 @@ static void ftrace_ret(paddr_t pc) {
   log_write("ret  [%s]\n", find_func(pc));
 }
 
-void call_check(paddr_t pc, paddr_t dest, int rd) {
+void jal_check(paddr_t pc, paddr_t dest, int rd) {
   if (rd == 1 || rd == 5) {
     ftrace_call(pc, dest);
   }
 }
 
-void ret_check(paddr_t pc, paddr_t dest, int rd, uint32_t inst) {
+void jalr_check(paddr_t pc, paddr_t dest, int rd, uint32_t inst) {
   int rs1 = BITS(inst, 19, 15);
-  if (rd == 0 && (rs1 == 1 || rs1 == 5)) {
+  bool rd_islink = (rd == 1 || rd == 5);
+  bool rs1_islink = (rs1 == 1 || rs1 == 5);
+  bool rd_isequal_rs1 = (rd == rs1);
+  if (!rd_islink && !rs1_islink) {
+    return;
+  } else if (!rd_islink && rs1_islink) {
     ftrace_ret(pc);
-  } else if (rd == 1 || rd == 5) {
+  } else if (rd_islink && !rs1_islink) {
+    ftrace_call(pc, dest);
+  } else if (rd_islink && rs1_islink && !rd_isequal_rs1) {
+    ftrace_ret(pc);
+    ftrace_call(pc, dest);
+  } else if (rd_islink && rs1_islink && rd_isequal_rs1) {
     ftrace_call(pc, dest);
   }
 }
