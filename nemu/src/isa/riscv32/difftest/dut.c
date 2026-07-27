@@ -18,18 +18,17 @@
 #include "../local-include/reg.h"
 
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
-  for (int i = 0; i < 32; i ++) {
-    if (ref_r->gpr[i] != cpu.gpr[i]) {
-      Log("DiffTestErr: pc = " FMT_PADDR, pc);
-      return false;
+  bool is_right = true;
+  for (int i = 0; i < MUXDEF(CONFIG_RVE, 16, 32); i ++) {
+    if (!difftest_check_reg(reg_name(i), pc, ref_r->gpr[i], cpu.gpr[i])) {
+      is_right = false;
     }
   }
-  if (ref_r->pc != cpu.pc) {
-    Log("DiffTestErr: pc = " FMT_PADDR, pc);
-    return false;
+  if (!difftest_check_reg("pc", pc, ref_r->pc, cpu.pc)) {
+    is_right = false;
   }
 
-  return true;
+  return is_right;
 }
 
 void isa_difftest_attach() {
