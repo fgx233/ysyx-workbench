@@ -4,6 +4,7 @@
  * NEMU Configuration Menu
  *
  */
+#define CONFIG_RVE 1
 // #define CONFIG_AUDIO_CTL_MMIO 0xa0000200
 // #define CONFIG_DIFFTEST_REF_NAME "spike"
 // #define CONFIG_ENGINE "interpreter"
@@ -43,3 +44,15 @@
 // #define CONFIG_ISA "riscv32"
 // #define CONFIG_VGA_CTL_MMIO 0xa0000100
 // #define CONFIG_PMEM_GARRAY 1
+#define CONFIG_TRACE 1
+#define CONFIG_ITRACE 1
+#define CONFIG_ITRACE_COND "true"
+#define ITRACE_COND true
+#define CONFIG_TRACE_START 0
+#define CONFIG_TRACE_END 10000
+
+#define CONFIG_IRINGBUF 1
+#define CONFIG_MTRACE 1
+#define CONFIG_FTRACE 1
+#define CONFIG_DIFFTEST 1
+#define CONFIG_WATCH_POINT 1

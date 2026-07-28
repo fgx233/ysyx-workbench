@@ -2,7 +2,7 @@
 #define __UTILS_H__
 
 #include <common.hpp>
-
+#include <cpu.hpp>
 // ----------- state -----------
 
 enum { NPC_RUNNING, NPC_STOP, NPC_END, NPC_ABORT, NPC_QUIT };
@@ -39,10 +39,11 @@ extern NPCState npc_state;
 
 #define ANSI_FMT(str, fmt) fmt str ANSI_NONE
 
+extern bool log_enable(); \
+
 #define log_write(...) IFDEF(CONFIG_TARGET_NATIVE_ELF, \
   do { \
     extern FILE* log_fp; \
-    extern bool log_enable(); \
     if (log_enable() && log_fp != NULL) { \
       fprintf(log_fp, __VA_ARGS__); \
       fflush(log_fp); \
@@ -58,13 +59,30 @@ extern NPCState npc_state;
 
 
 
-// src/utils/log.c
+// src/utils/log.cpp
 void init_log(const char *log_file);
 
-// src/utils/timer.c
+// src/utils/timer.cpp
 void init_rand();
 uint64_t get_time();
 
-// src/utils/state.c
+// src/utils/state.cpp
 int is_exit_status_bad();
+
+// src/utils/disasm.cpp
+void init_disasm();
+
+// src/utils/iringbuf.cpp
+void iringbuf_insert(const char *log);
+
+void iringbuf_print();
+
+// src/utils/ftrace.cpp
+void init_ftrace(const char *elf_flie);
+void ftrace_check(Decode *s);
+
+// src/utils/dut.cpp
+void init_difftest(char *ref_so_file, long img_size, int port);
+void difftest_step(vaddr_t pc);
+void difftest_skip_ref();
 #endif

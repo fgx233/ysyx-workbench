@@ -3,7 +3,9 @@ TOP = top
 
 CXX = g++
 VCC = verilator
-CXXFLAGS = -I$(BUILD_DIR) -I$(VERILATOR_ROOT)/include -I$(VERILATOR_ROOT)/include/vltstd -Iinclude -MMD -MP -D__GUEST_ISA__=riscv32e -Wall -g
+CXXFLAGS = -I$(BUILD_DIR) -isystem $(VERILATOR_ROOT)/include -isystem $(VERILATOR_ROOT)/include/vltstd -Iinclude -MMD -MP -D__GUEST_ISA__=riscv32e -Wall -g
+CXXFLAGS += -I$(NEMU_HOME)/tools/capstone/repo/include
+
 LINKAGES = $(BUILD_DIR)/libV$(TOP).a $(BUILD_DIR)/libverilated.a -lz -lpthread -llz4 -lreadline
 
 BUILD_DIR := build
@@ -22,8 +24,9 @@ SV_LIB := $(BUILD_DIR)/libV$(TOP).a
 DEPS := $(OBJS:.o=.d)
 WAVE_FILE = $(BUILD_DIR)/wave.fst
 
-ARGS ?= --log=$(BUILD_DIR)/npc-log.txt
-
+override ARGS ?= --log=$(BUILD_DIR)/npc-log.txt
+ELF ?= $(basename $(IMG)).elf
+override ARGS += $(if $(IMG), -e $(ELF))
 NPC_EXEC := $(TARGET) $(ARGS) --wave=$(WAVE_FILE) $(IMG) 
 
 all: $(TARGET)
@@ -40,17 +43,20 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 $(TARGET): $(OBJS) $(SV_LIB)
-	mkdir -p $(dir $@)
-	$(CXX) $(OBJS) $(LINKAGES) -o $@
+	@mkdir -p $(dir $@)
+	@echo + LD $@
+	@$(CXX) $(OBJS) $(LINKAGES) -o $@
 
 $(OBJS): $(SV_LIB)
 
 $(OBJ_DIR)/%.o: $(CSRC_DIR)/%.cpp
-	mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	@mkdir -p $(dir $@)
+	@echo + CXX $<
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(SV_LIB): $(VSRCS)
-	$(VCC) --cc --build --trace-fst -Wall -Wno-UNUSEDSIGNAL --Mdir $(BUILD_DIR) $(VSRCS) --top-module $(TOP)
+	@echo + VCC npc
+	@$(VCC) --quiet --cc --build --trace-fst -Wall -Wno-UNUSEDSIGNAL --Mdir $(BUILD_DIR) $(VSRCS) --top-module $(TOP)
 
 -include $(DEPS)
 

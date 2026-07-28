@@ -48,7 +48,7 @@ WP* new_wp(char *e) {
   head = p;
 
   int n = snprintf(p->expr, sizeof(p->expr), "%s", e);
-  if (n >= sizeof(p->expr)) {
+  if (n >= (int)sizeof(p->expr)) {
     printf("表达式过长，监视点添加失败。\n");
     free_wp(p);
     return NULL;
@@ -98,7 +98,7 @@ void print_all() {
   
   int max = 12;
   while (p != NULL) {
-    if (max < strlen(p->expr)) {
+    if (max < (int)strlen(p->expr)) {
       max = strlen(p->expr);
     }
     p = p->next;

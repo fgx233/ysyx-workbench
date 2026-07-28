@@ -1,9 +1,10 @@
 #include <common.hpp>
 #include <utils.hpp>
+
+extern uint64_t g_nr_guest_inst;
+
 // 日志文件指针
 FILE *log_fp = NULL;
-
-
 
 void init_log(const char *log_file) {
   log_fp = stdout;
@@ -16,5 +17,6 @@ void init_log(const char *log_file) {
 }
 
 bool log_enable() { 
-  return true; 
+  return MUXDEF(CONFIG_TRACE, (g_nr_guest_inst >= CONFIG_TRACE_START) &&
+         (g_nr_guest_inst <= CONFIG_TRACE_END), false);
 }

@@ -18,16 +18,38 @@
 #include <difftest-def.h>
 #include <memory/paddr.h>
 
+static void diff_set_regs(CPU_state *dut) {
+  for (int i = 0; i < MUXDEF(CONFIG_RVE, 16, 32); i ++) {
+    cpu.gpr[i] = dut->gpr[i];
+  }
+  cpu.pc = dut->pc;
+}
+
+static void diff_get_regs(CPU_state *ref) {
+  for (int i = 0; i < MUXDEF(CONFIG_RVE, 16, 32); i ++) {
+    ref->gpr[i] = cpu.gpr[i];
+  }
+  ref->pc = cpu.pc;
+}
+
 __EXPORT void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {
-  assert(0);
+  if (direction == DIFFTEST_TO_REF) {
+    memcpy(guest_to_host(addr), buf, n);
+  } else {
+    Assert(0, "difftest初始化内存失败");
+  }
 }
 
 __EXPORT void difftest_regcpy(void *dut, bool direction) {
-  assert(0);
+  if (direction == DIFFTEST_TO_REF) {
+    diff_set_regs(dut);
+  } else {
+    diff_get_regs(dut);
+  }
 }
 
 __EXPORT void difftest_exec(uint64_t n) {
-  assert(0);
+  cpu_exec(n);
 }
 
 __EXPORT void difftest_raise_intr(word_t NO) {

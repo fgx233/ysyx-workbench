@@ -107,7 +107,7 @@ static bool make_token(char *e) {
           //将匹配到的字符串类型写入对应的token元素的类型
           int nr_write = snprintf(tokens[nr_token].str, sizeof(tokens[nr_token].str), "%.*s", substr_len, substr_start);
           //将匹配到的字符串全部写入token元素的字符串
-          if (nr_write >= sizeof(tokens[i].str) || nr_write < 0) {      
+          if (nr_write >= (int)sizeof(tokens[i].str) || nr_write < 0) {      
             //token读取正确性检测
             printf("token有错误或过长:%.*s\n", substr_len, substr_start);
             return false;

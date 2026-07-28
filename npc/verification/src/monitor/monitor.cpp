@@ -13,6 +13,7 @@ static char *log_file = NULL;
 static char *elf_file = NULL;
 // 差分测试共享库字符串指针
 static char *diff_so_file = NULL;
+static char nemu_so_path[128] = "/home/fgx/projects/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so";
 // 程序二进制文件字符串指针
 static char *img_file = NULL;
 // 差分测试端口
@@ -105,6 +106,9 @@ void init_monitor(int argc, char *argv[]) {
   // 初始化仿真环境
   init_context(wave_file);
 
+  // 初始化函数追踪
+  IFDEF(CONFIG_FTRACE, init_ftrace(elf_file));
+
   // 初始化内存
   init_mem();
 
@@ -112,10 +116,16 @@ void init_monitor(int argc, char *argv[]) {
   init_isa();
 
   // 加载镜像
-  load_img();
+  long img_size = load_img();
+
+  // 加载difftest
+  init_difftest(nemu_so_path, img_size, difftest_port);
 
   // 初始化sdb
   init_sdb();
+
+  // 初始化反汇编
+  IFDEF(CONFIG_ITRACE, init_disasm());
 
   welcome();
 }
