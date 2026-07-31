@@ -28,5 +28,8 @@ SRCS-BLACKLIST-$(CONFIG_TARGET_AM) += src/device/alarm.c
 ifdef CONFIG_DEVICE
 ifndef CONFIG_TARGET_AM
 LIBS += $(shell sdl2-config --libs)
+ifeq ($(shell uname -s),Darwin)
+CFLAGS += -I$(shell sdl2-config --prefix)/include
+endif
 endif
 endif

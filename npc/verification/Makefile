@@ -6,7 +6,15 @@ VCC = verilator
 CXXFLAGS = -I$(BUILD_DIR) -isystem $(VERILATOR_ROOT)/include -isystem $(VERILATOR_ROOT)/include/vltstd -Iinclude -MMD -MP -D__GUEST_ISA__=riscv32e -Wall -g
 CXXFLAGS += -I$(NEMU_HOME)/tools/capstone/repo/include
 
-LINKAGES = $(BUILD_DIR)/libV$(TOP).a $(BUILD_DIR)/libverilated.a -lz -lpthread -llz4 -lreadline
+# macOS: Homebrew 的头文件/库不在编译器默认搜索路径里
+ifeq ($(shell uname -s),Darwin)
+  BREW         := $(shell brew --prefix)
+  BREW_LDFLAGS := -L$(BREW)/lib
+	BREW_LDFLAGS += -Wl,-U,__Z15vl_time_stamp64v,-U,__Z13sc_time_stampv,-U,_vlog_startup_routines
+  VCC_EXTRA    := -CFLAGS -I$(BREW)/include
+endif
+
+LINKAGES = $(BUILD_DIR)/libV$(TOP).a $(BUILD_DIR)/libverilated.a $(BREW_LDFLAGS) -lz -lpthread -llz4 -lreadline
 
 BUILD_DIR := build
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -56,7 +64,7 @@ $(OBJ_DIR)/%.o: $(CSRC_DIR)/%.cpp
 
 $(SV_LIB): $(VSRCS)
 	@echo + VCC npc
-	@$(VCC) --quiet --cc --build --trace-fst -Wall -Wno-UNUSEDSIGNAL --Mdir $(BUILD_DIR) $(VSRCS) --top-module $(TOP)
+	@$(VCC) --quiet --cc --build --trace-fst -Wall -Wno-UNUSEDSIGNAL --Mdir $(BUILD_DIR) $(VSRCS) --top-module $(TOP) $(VCC_EXTRA)
 
 -include $(DEPS)
 

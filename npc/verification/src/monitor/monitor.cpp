@@ -13,7 +13,7 @@ static char *log_file = NULL;
 static char *elf_file = NULL;
 // 差分测试共享库字符串指针
 static char *diff_so_file = NULL;
-static char nemu_so_path[128] = "/home/fgx/projects/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so";
+static char nemu_so_path[128] = "/Users/fgx/Desktop/Project/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so";
 // 程序二进制文件字符串指针
 static char *img_file = NULL;
 // 差分测试端口

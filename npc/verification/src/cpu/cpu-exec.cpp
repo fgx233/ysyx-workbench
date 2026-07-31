@@ -1,11 +1,12 @@
+#include <Vtop.h>
+#include <verilated_fst_c.h>
+#include "Vtop___024root.h"
+
 #include "common.hpp"
 #include "paddr.hpp"
 #include "utils.hpp"  
 #include "cpu.hpp"
 #include "sdb.hpp"
-#include <Vtop.h>
-#include <verilated_fst_c.h>
-#include "Vtop___024root.h"
 
 #define MAX_INST_TO_PRINT 10
 
