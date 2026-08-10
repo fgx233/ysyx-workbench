@@ -35,6 +35,8 @@ extern "C" void vaddr_write(int waddr, int wdata, char wmask) {
     case 0b0010:paddr_write(fixed_addr + 1, 1, fixed_data); break;
     case 0b0100:paddr_write(fixed_addr + 2, 1, fixed_data); break;
     case 0b1000:paddr_write(fixed_addr + 3, 1, fixed_data); break;
-    default:    paddr_write(fixed_addr, 4, fixed_data); break;
+    case 0b1100:paddr_write(fixed_addr + 2, 2, fixed_data); break;
+    case 0b0011:paddr_write(fixed_addr, 2, fixed_data); break;
+    default:    panic("内存写入掩码错误:wmask = %d\n", fixed_wmask); break;
   }
 }

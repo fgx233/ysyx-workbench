@@ -33,6 +33,7 @@ void (*ref_difftest_raise_intr)(uint64_t NO) = NULL;
 #ifdef CONFIG_DIFFTEST
 
 static bool is_skip_ref = false;
+static bool is_skip_ref_next = false;
 
 static inline bool difftest_check_reg(const char *name, vaddr_t pc, word_t ref, word_t dut) {
   if (ref != dut) {
@@ -62,6 +63,10 @@ bool isa_difftest_checkregs(riscv32e_NPC_state *ref_r, vaddr_t pc) {
 // can not produce consistent behavior with NEMU
 void difftest_skip_ref() {
   is_skip_ref = true;
+}
+
+void difftest_skip_ref_next() {
+  is_skip_ref_next = true;
 }
 
 
@@ -110,10 +115,26 @@ static void checkregs(riscv32e_NPC_state *ref, vaddr_t pc) {
 void difftest_step(vaddr_t pc) {
   riscv32e_NPC_state ref_r;
 
-  if (is_skip_ref) {
-    ref_difftest_regcpy(&npc, DIFFTEST_TO_REF);
-    is_skip_ref = false;
-    return;
+  // if (is_skip_ref) {
+  //   ref_difftest_regcpy(&npc, DIFFTEST_TO_REF);
+  //   is_skip_ref = false;
+  //   return;
+  // }
+
+  if (is_skip_ref || is_skip_ref_next) {
+    if (is_skip_ref && is_skip_ref_next) {
+      ref_difftest_regcpy(&npc, DIFFTEST_TO_REF);
+      is_skip_ref_next = false;
+      return;
+    } else if (is_skip_ref) {
+      ref_difftest_regcpy(&npc, DIFFTEST_TO_REF);
+      is_skip_ref = false;
+      return;
+    } else {
+      is_skip_ref_next = false;
+      is_skip_ref = true;
+    }
+
   }
 
   ref_difftest_exec(1);

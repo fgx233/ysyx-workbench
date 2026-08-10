@@ -1,21 +1,21 @@
 import chisel3._
 import chisel3.util._
+import common._
 
 // 负责根据当前PC从存储器中取出一条指令
 class Ifu extends Module {
-  // pc寄存器输入
-  val pc = IO(Input(UInt(32.W)))
-  // 取到的指令
-  val inst = IO(Output(UInt(32.W)))
+  val pc            = IO(Input(UInt(32.W)))
+  val inst          = IO(Output(UInt(32.W)))
 
-  // 接入ram中的其中一个读端口
-  // 读地址
-  val raddr = IO(Output(UInt(32.W)))
-  // 读数据
-  val rdata = IO(Input(UInt(32.W)))
-  val ren = IO(Output(Bool()))
-  
-  ren := true.B
-  raddr := pc
-  inst := rdata
+  val cpuReadAddr1  = IO(Output(UInt(32.W)))
+  val cpuReadData1  = IO(Input(UInt(32.W)))
+  val cpuReadEn1    = IO(Output(Bool()))
+  val cpuReadLen1   = IO(Output(UInt(2.W)))
+  val cpuReadSign1  = IO(Output(Bool()))
+
+  inst              := cpuReadData1
+  cpuReadAddr1      := pc
+  cpuReadEn1        := true.B
+  cpuReadLen1       := RamLen.four
+  cpuReadSign1      := false.B
 }

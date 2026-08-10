@@ -1,62 +1,55 @@
 import chisel3._
 import chisel3.util._
+import common._
 
 class Exu extends Module {
-  val pc   = IO(Input(UInt(32.W)))
-  val src1 = IO(Input(UInt(32.W)))
-  val src2 = IO(Input(UInt(32.W)))
-  val immI = IO(Input(UInt(32.W)))
-  val immU = IO(Input(UInt(32.W)))
-  val immS = IO(Input(UInt(32.W)))
+  val aluOprand1          = IO(Input(UInt(32.W)))
+  val aluOprand2          = IO(Input(UInt(32.W)))
+  val aluOpcode           = IO(Input(UInt(4.W)))
+  val pcOprand1           = IO(Input(UInt(32.W)))
+  val pcOprand2           = IO(Input(UInt(32.W)))
+  val isBranch            = IO(Input(Bool()))
+  val isUncondjmp         = IO(Input(Bool()))
 
-  val isAdd        = IO(Input(Bool()))
-  val isAddi       = IO(Input(Bool()))
-  val isLw         = IO(Input(Bool()))
-  val isAuipc      = IO(Input(Bool()))
-  val isLbu        = IO(Input(Bool()))
-  val isJalr       = IO(Input(Bool()))
-  val isLui        = IO(Input(Bool()))
-  val isSb         = IO(Input(Bool()))
-  val isSw         = IO(Input(Bool()))
+  val pc                  = IO(Output(UInt(32.W)))
+  val aluResult           = IO(Output(UInt(32.W)))
 
-  val ramWriteAddr = IO(Output(UInt(32.W)))
-  val ramWriteData = IO(Output(UInt(32.W)))
+  val add                 = (aluOprand1.asSInt + aluOprand2.asSInt).asUInt
+  val sub                 = (aluOprand1.asSInt - aluOprand2.asSInt).asUInt
+  val and                 = aluOprand1 & aluOprand2
+  val or                  = aluOprand1 | aluOprand2
+  val xor                 = aluOprand1 ^ aluOprand2
+  val equ                 = (aluOprand1 === aluOprand2).asUInt
+  val neq                 = (aluOprand1 =/= aluOprand2).asUInt
+  val largeOrEquS         = (aluOprand1.asSInt >= aluOprand2.asSInt).asUInt
+  val largeOrEquU         = (aluOprand1 >= aluOprand2).asUInt
+  val smallS              = (aluOprand1.asSInt < aluOprand2.asSInt).asUInt
+  val smallU              = (aluOprand1 < aluOprand2).asUInt
+  val leftShiftU          = (aluOprand1 << aluOprand2(4,0))(31,0)
+  val rightShiftS         = (aluOprand1.asSInt >> aluOprand2(4,0)).asUInt
+  val rightShiftU         = aluOprand1 >> aluOprand2(4,0)
 
-  val ramReadAdder = IO(Output(UInt(32.W)))
-  val ramReadData  = IO(Input(UInt(32.W)))
-
-  val regsWriteData = IO(Output(UInt(32.W)))
-
-  val nextPc       = IO(Output(UInt(32.W)))
-
-  val snpc = pc + 4.U
+  aluResult               := MuxLookup(aluOpcode, add)(Seq(
+    AluOpcode.add         -> add,
+    AluOpcode.sub         -> sub,
+    AluOpcode.and         -> and,
+    AluOpcode.or          -> or,
+    AluOpcode.xor         -> xor,
+    AluOpcode.equ         -> equ,
+    AluOpcode.neq         -> neq,
+    AluOpcode.largeOrEquS -> largeOrEquS,
+    AluOpcode.largeOrEquU -> largeOrEquU,
+    AluOpcode.smallS      -> smallS,
+    AluOpcode.smallU      -> smallU,
+    AluOpcode.leftShiftU  -> leftShiftU,
+    AluOpcode.rightShiftS -> rightShiftS,
+    AluOpcode.rightShiftU -> rightShiftU
+  ))
+  val isBranchSuccess     = isBranch && aluResult(0).asBool
   
-
-  val imm = MuxCase(immI, Seq(
-    isLui -> immU,
-    isSb -> immS,
-    isSw -> immS,
-    isAuipc -> immU
+  val pcTmp               = pcOprand1 + MuxCase(4.U(32.W), Seq(
+    isUncondjmp           -> pcOprand2,
+    isBranchSuccess       -> pcOprand2
   ))
-  val add1 = Mux(isAuipc, pc, src1)
-  val add2 = Mux(isAdd, src2, imm)
-  val adder = add1 + add2
-
-  ramWriteAddr := adder
-  ramWriteData := src2
-
-  ramReadAdder := adder
-
-  regsWriteData := MuxCase(adder, Seq(
-    isAdd  -> adder,
-    isAddi -> adder,
-    isAuipc -> adder,
-    isJalr -> snpc,
-    isLui  -> immU,
-    isLw   -> ramReadData,
-    isLbu  -> ramReadData
-  ))
-
-  val dnpc = Mux(isJalr, adder & (~1.U(32.W)), snpc)
-  nextPc := dnpc
+  pc                      := pcTmp & "hffff_fffe".U(32.W)
 }

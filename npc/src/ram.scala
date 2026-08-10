@@ -1,5 +1,6 @@
 import chisel3._
 import chisel3.util.circt.dpi._
+import common._
 
 object instFetch extends DPINonVoidFunctionImport[UInt] {
   override val functionName = "vaddr_ifetch"
@@ -28,30 +29,27 @@ object vaddrWrite extends DPIClockedVoidFunctionImport {
 
 
 class Ram extends Module {
-  // 取指读口 (IFU)
-  val fetch_en = IO(Input(Bool()))
-  val pc       = IO(Input(UInt(32.W)))
-  val inst     = IO(Output(UInt(32.W)))
-  // 数据读口 (LSU load)
-  val ren      = IO(Input(Bool()))
-  val raddr    = IO(Input(UInt(32.W)))
-  val rdata    = IO(Output(UInt(32.W)))
-  // 写口 (LSU store)
-  val wen      = IO(Input(Bool()))
-  val waddr    = IO(Input(UInt(32.W)))
-  val wdata    = IO(Input(UInt(32.W)))
-  val wmask    = IO(Input(UInt(4.W)))
+  val raddr1 = IO(Input(UInt(32.W)))
+  val rdata1 = IO(Output(UInt(32.W)))
+  val ren1   = IO(Input(Bool()))
+  val raddr2 = IO(Input(UInt(32.W)))
+  val rdata2 = IO(Output(UInt(32.W)))
+  val ren2   = IO(Input(Bool()))
+  val waddr  = IO(Input(UInt(32.W)))
+  val wdata  = IO(Input(UInt(32.W)))
+  val wen    = IO(Input(Bool()))
+  val wmask  = IO(Input(UInt(4.W)))
 
-  when(fetch_en && !reset.asBool) {
-    inst := instFetch(pc)        // 调用点 1:取指
+  when(ren1 && !reset.asBool) {
+    rdata1 := instFetch(raddr1)        // 调用点 1:取指
   } otherwise {
-    inst := 0.U
+    rdata1 := 0.U
   }
 
-  when(ren && !reset.asBool) {
-    rdata := vaddrRead(raddr)    // 调用点 2:load
+  when(ren2 && !reset.asBool) {
+    rdata2 := vaddrRead(raddr2)
   } otherwise {
-    rdata := 0.U
+    rdata2 := 0.U
   }
 
   when(wen && !reset.asBool) {

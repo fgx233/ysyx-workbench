@@ -2,90 +2,74 @@ import chisel3._
 import chisel3.util._
 
 class top extends Module {
-  val pc = Module(new Pc)
-  val regs = Module(new Regs)
-  val ram = Module(new Ram)
-  val monitor = Module(new Monitor)
+  val pc            = Module(new Pc)
+  val regs          = Module(new Regs)
+  val ram           = Module(new Ram)
+  val ifu           = Module(new Ifu)
+  val idu           = Module(new Idu)
+  val exu           = Module(new Exu)
+  val lsu           = Module(new Lsu)
+  val wbu           = Module(new Wbu)
+  val monitor       = Module(new Monitor)
 
-  val ifu = Module(new Ifu)
-  val idu = Module(new Idu)
-  val exu = Module(new Exu)
-  val lsu = Module(new Lsu)
-
-  // Monitor模块连线
-  monitor.pc := pc.rdata
-  monitor.isEbreak := idu.isEbreak
-  monitor.isInvalid := idu.isInvalid
-
-  // Ifu模块连线
-  ifu.pc := pc.rdata
-  ifu.rdata := lsu.rdata1Cpu
-
-  // Idu模块连线
-  idu.inst := ifu.inst
-
-  idu.rdata1 := regs.rdata1
-  idu.rdata2 := regs.rdata2
-
-  // Exu模块连线
-  exu.pc := pc.rdata
-  exu.src1 := idu.src1
-  exu.src2 := idu.src2
-  exu.immI := idu.immI
-  exu.immU := idu.immU
-  exu.immS := idu.immS
-
-  exu.isAdd := idu.isAdd
-  exu.isAddi := idu.isAddi
-  exu.isLw := idu.isLw
-  exu.isLbu := idu.isLbu
-  exu.isJalr := idu.isJalr
-  exu.isLui := idu.isLui
-  exu.isSb := idu.isSb
-  exu.isSw := idu.isSw
-  exu.isAuipc := idu.isAuipc
+  ifu.pc            := pc.rdata
+  ifu.cpuReadData1  := lsu.cpuReadData1
   
-  exu.ramReadData := lsu.rdata2Cpu
+  idu.inst          := ifu.inst
+  idu.regsRdata1    := regs.rdata1
+  idu.regsRdata2    := regs.rdata2
+  idu.pc            := pc.rdata
 
-  // Lsu模块连线
-  lsu.ren1Cpu := ifu.ren
-  lsu.raddr1Cpu := ifu.raddr
+  exu.aluOprand1    := idu.aluOprand1
+  exu.aluOprand2    := idu.aluOprand2
+  exu.aluOpcode     := idu.aluOpcode
+  exu.pcOprand1     := idu.pcOprand1
+  exu.pcOprand2     := idu.pcOprand2
+  exu.isBranch      := idu.isBranch
+  exu.isUncondjmp   := idu.isUncondjmp
 
-  lsu.ren2Cpu := idu.ramRen
-  lsu.raddr2Cpu := exu.ramReadAdder
+  lsu.cpuReadAddr1  := ifu.cpuReadAddr1
+  lsu.cpuReadLen1   := ifu.cpuReadLen1
+  lsu.cpuReadEn1    := ifu.cpuReadEn1
+  lsu.cpuReadSign1  := ifu.cpuReadSign1
 
-  lsu.wenCpu := idu.ramWen
-  lsu.waddrCpu := exu.ramWriteAddr
-  lsu.wdataCpu := exu.ramWriteData
+  lsu.cpuReadAddr2  := exu.aluResult
+  lsu.cpuReadLen2   := idu.cpuReadLen2
+  lsu.cpuReadEn2    := idu.cpuReadEn2
+  lsu.cpuReadSign2  := idu.cpuReadSign2
 
-  lsu.isLw := idu.isLw
-  lsu.isLbu := idu.isLbu
-  lsu.isSw := idu.isSw
-  lsu.isSb := idu.isSb
+  lsu.cpuWriteAddr  := exu.aluResult
+  lsu.cpuWriteData  := idu.cpuWriteData
+  lsu.cpuWriteLen   := idu.cpuWriteLen
+  lsu.cpuWriteEn    := idu.cpuWriteEn
 
-  lsu.rdata1Ram := ram.inst
-  lsu.rdata2Ram := ram.rdata
+  lsu.ramReadData1  := ram.rdata1
+  lsu.ramReadData2  := ram.rdata2
 
-  // pc模块连线
-  pc.wen := ifu.ren
-  pc.wdata := exu.nextPc
+  wbu.iduRd         := idu.regsWdata
+  wbu.exuRd         := exu.aluResult
+  wbu.lsuRd         := lsu.cpuReadData2
+  wbu.wbuChoose     := idu.wbuChoose
 
-  // regs模块连线
-  regs.raddr1 := idu.rs1(3,0)
-  regs.raddr2 := idu.rs2(3,0)
-  regs.waddr := idu.rd(3,0)
-  regs.wdata := exu.regsWriteData
-  regs.wen := idu.regsEn
+  pc.wdata          := exu.pc
+  pc.wen            := idu.pcEn
 
-  // ram模块连线
-  ram.fetch_en := lsu.ren1Ram
-  ram.pc := lsu.raddr1Ram
+  regs.raddr1       := idu.regsRaddr1
+  regs.raddr2       := idu.regsRaddr2
+  regs.waddr        := idu.regsWaddr
+  regs.wdata        := wbu.rd
+  regs.wen          := idu.regsWen
 
-  ram.ren := lsu.ren2Ram
-  ram.raddr := lsu.raddr2Ram
+  ram.raddr1        := lsu.ramReadAddr1
+  ram.ren1          := lsu.ramReadEn1
+  ram.raddr2        := lsu.ramReadAddr2
+  ram.ren2          := lsu.ramReadEn2
+  ram.waddr         := lsu.ramWriteAddr
+  ram.wdata         := lsu.ramWriteData
+  ram.wen           := lsu.ramWriteEn
+  ram.wmask         := lsu.ramWriteMask
 
-  ram.wen := lsu.wenRam
-  ram.waddr := lsu.waddrRam
-  ram.wdata := lsu.wdataRam
-  ram.wmask := lsu.wmask
+  monitor.pc        := pc.rdata
+  monitor.isEbreak  := idu.isEbreak
+  monitor.isInvalid := idu.isInv
 }
