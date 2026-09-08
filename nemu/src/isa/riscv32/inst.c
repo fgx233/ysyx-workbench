@@ -19,11 +19,14 @@
 #include <cpu/decode.h>
 
 #define R(i) gpr(i)
+#define CSR(i) get_csr(i)
 #define Mr vaddr_read
 #define Mw vaddr_write
 
 void jal_check(paddr_t pc, paddr_t dest, int rd);
 void jalr_check(paddr_t pc, paddr_t dest, int rd, uint32_t inst);
+void etrace_call(vaddr_t epc, word_t cause, vaddr_t tvec);
+void etrace_ret(vaddr_t pc, vaddr_t target);
 
 enum {
   TYPE_I, TYPE_U, TYPE_S, TYPE_R, TYPE_J, TYPE_B,
@@ -136,6 +139,10 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , R, R(rd) = (src2 == 0)? src1 : src1 % src2);
 
   /* 系统/特殊 */
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, R(rd) = get_csr(imm); set_csr(imm, src1));
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, word_t t = get_csr(imm); set_csr(imm, t | src1); R(rd) = t);
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, s->dnpc = isa_raise_intr(0xb, s->pc); IFDEF(CONFIG_ETRACE, etrace_call(s->pc, 0xb, s->dnpc)));
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , R, s->dnpc = get_csr(0x341); isa_mret_helper(); IFDEF(CONFIG_ETRACE, etrace_ret(s->pc, s->dnpc)));
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
   INSTPAT_END();

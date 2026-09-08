@@ -27,7 +27,18 @@ bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
   if (!difftest_check_reg("pc", pc, ref_r->pc, cpu.pc)) {
     is_right = false;
   }
-
+  if (!difftest_check_reg("mepc", pc, ref_r->mepc, cpu.mepc)) {
+    is_right = false;
+  }
+  if (!difftest_check_reg("mstatus", pc, ref_r->mstatus, cpu.mstatus)) {
+    is_right = false;
+  }
+  if (!difftest_check_reg("mcause", pc, ref_r->mcause, cpu.mcause)) {
+    is_right = false;
+  }
+  if (!difftest_check_reg("mtvec", pc, ref_r->mtvec, cpu.mtvec)) {
+    is_right = false;
+  }
   return is_right;
 }
 

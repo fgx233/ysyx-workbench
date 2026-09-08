@@ -16,7 +16,7 @@
 #ifndef __RISCV_REG_H__
 #define __RISCV_REG_H__
 
-#include <common.h>
+#include <isa.h>
 
 static inline int check_reg_idx(int idx) {
   IFDEF(CONFIG_RT_CHECK, assert(idx >= 0 && idx < MUXDEF(CONFIG_RVE, 16, 32)));
@@ -24,6 +24,26 @@ static inline int check_reg_idx(int idx) {
 }
 
 #define gpr(idx) (cpu.gpr[check_reg_idx(idx)])
+
+static inline word_t get_csr(uint32_t idx) {
+  switch (idx) {
+    case 0x300: return cpu.mstatus; break;
+    case 0x305: return cpu.mtvec;   break;
+    case 0x341: return cpu.mepc;    break;
+    case 0x342: return cpu.mcause;  break;
+    default: panic("未知的csr寄存器编号：%u", idx); 
+  }
+}
+
+static inline void set_csr(uint32_t idx, word_t data) {
+  switch (idx) {
+    case 0x300: cpu.mstatus = data; break;
+    case 0x305: cpu.mtvec   = data; break;
+    case 0x341: cpu.mepc    = data; break;
+    case 0x342: cpu.mcause  = data; break;
+    default: panic("未知的csr寄存器编号：%u", idx); 
+  }
+}
 
 static inline const char* reg_name(int idx) {
   extern const char* regs[];

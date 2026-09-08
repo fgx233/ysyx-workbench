@@ -159,7 +159,7 @@ config IRINGBUF
   default n
 
 config MTRACE
-  depends on ITRACE
+  depends on TRACE
   bool "Enable memory trace"
   default n
 
@@ -171,6 +171,11 @@ config FTRACE
 config DTRACE
   depends on DEVICE && TRACE
   bool "Enable device tracer"
+  default n
+
+config ETRACE
+  depends on TRACE
+  bool "Enable exception trap"
   default n
 
 config DIFFTEST

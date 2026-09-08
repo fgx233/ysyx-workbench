@@ -25,9 +25,14 @@ const char *regs[] = {
 
 void isa_reg_display() {
   for(int i = 0; i < MUXDEF(CONFIG_RVE, 16, 32); i++) {
-    printf("%-5s:  " FMT_WORD "  " FMT_SWORD "\n" , regs[i], cpu.gpr[i], (sword_t)cpu.gpr[i]);
+    printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , regs[i], cpu.gpr[i], (sword_t)cpu.gpr[i]);
   }
-  printf("%-5s:  " FMT_WORD "  " FMT_SWORD "\n" , "pc", cpu.pc, (sword_t)cpu.pc);
+  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "pc", cpu.pc, (sword_t)cpu.pc);
+
+  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mepc", cpu.mepc, (sword_t)cpu.mepc);
+  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mstatus", cpu.mstatus, (sword_t)cpu.mstatus);
+  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mcause", cpu.mcause, (sword_t)cpu.pc);
+  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mtvec", cpu.mtvec, (sword_t)cpu.pc);
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
