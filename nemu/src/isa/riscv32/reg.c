@@ -31,8 +31,8 @@ void isa_reg_display() {
 
   printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mepc", cpu.mepc, (sword_t)cpu.mepc);
   printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mstatus", cpu.mstatus, (sword_t)cpu.mstatus);
-  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mcause", cpu.mcause, (sword_t)cpu.pc);
-  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mtvec", cpu.mtvec, (sword_t)cpu.pc);
+  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mcause", cpu.mcause, (sword_t)cpu.mcause);
+  printf("%-7s:  " FMT_WORD "  " FMT_SWORD "\n" , "mtvec", cpu.mtvec, (sword_t)cpu.mtvec);
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
