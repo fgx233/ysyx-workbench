@@ -11,6 +11,7 @@ Context* __am_irq_handle(Context *c) {
       case 0xb: {
         if (c->GPR1 == -1) {
           ev.event = EVENT_YIELD;
+          c->mepc += 4;
         }
       } break;
       default: ev.event = EVENT_ERROR; break;
@@ -19,7 +20,7 @@ Context* __am_irq_handle(Context *c) {
     c = user_handler(ev, c);
     assert(c != NULL);
   }
-  c->mepc += 4;
+
   return c;
 }
 
