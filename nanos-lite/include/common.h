@@ -7,9 +7,11 @@
 //#define MULTIPROGRAM
 //#define TIME_SHARING
 
+
 #include <am.h>
 #include <klib.h>
 #include <klib-macros.h>
 #include <debug.h>
+#include "autoconf.h"
 
 #endif
