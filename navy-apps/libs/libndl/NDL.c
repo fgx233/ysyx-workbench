@@ -4,10 +4,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <fcntl.h>
+#include <assert.h>
 
 static int evtdev = -1;
 static int fbdev = -1;
 static int screen_w = 0, screen_h = 0;
+static int canvas_w = 0, canvas_h = 0;
+static int fix_x = 0, fix_y = 0;
 
 static uint32_t get_time_internal() {
   struct timeval now;
@@ -28,7 +32,7 @@ uint32_t NDL_GetTicks() {
 }
 
 int NDL_PollEvent(char *buf, int len) {
-  return 0;
+  return read(evtdev, buf, len);
 }
 
 void NDL_OpenCanvas(int *w, int *h) {
@@ -49,9 +53,28 @@ void NDL_OpenCanvas(int *w, int *h) {
     }
     close(fbctl);
   }
+
+  if (*w == 0 && *h == 0) {
+    *w = screen_w;
+    *h = screen_h;
+  }
+  if (*w > screen_w || *h > screen_h) {
+    printf("长/宽超出限制：w:%d h:%d\n", *w, *h);
+    assert(0);
+  }
+  canvas_w = *w;
+  canvas_h = *h;
+
+  fix_x = (screen_w - canvas_w) / 2;
+  fix_y = (screen_h - canvas_h) / 2;
+  
 }
 
 void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
+  for (int i = 0; i < h; i ++) {
+    lseek(fbdev, ((y + i + fix_y) * screen_w + x + fix_x) * 4, SEEK_SET);
+    write(fbdev, pixels + i * w, w * 4);
+  }
 }
 
 void NDL_OpenAudio(int freq, int channels, int samples) {
@@ -73,8 +96,20 @@ int NDL_Init(uint32_t flags) {
     evtdev = 3;
   }
   NDL_GetTicks();
+  evtdev = open("/dev/events", 0);
+
+  int fd = open("/proc/dispinfo", 0);
+  char info[64] = {0};
+  read(fd, info, sizeof(info));
+  sscanf(info, "WIDTH:%d HEIGHT:%d", &screen_w, &screen_h);
+  close(fd);
+
+  fbdev = open("/dev/fb", 0);
+
   return 0;
 }
 
 void NDL_Quit() {
+  close(evtdev);
+  close(fbdev);
 }

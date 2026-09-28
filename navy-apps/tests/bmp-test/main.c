@@ -14,6 +14,7 @@ int main() {
   free(bmp);
   NDL_Quit();
   printf("Test ends! Spinning...\n");
+  printf("宽：%d, 高：%d\n", w, h);
   while (1);
   return 0;
 }
