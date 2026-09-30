@@ -8,6 +8,12 @@
  * 64-bit fixedpt width); If set to -2, "all" of the digits will
  * be returned, meaning there will be invalid, bogus digits outside the
  * specified precisions.
+ *
+ * 将给定的 fixedpt 数转换为十进制字符串。
+ * 参数 max_dec 指定生成小数点右侧的多少位十进制数字。若设为 -1,则使用
+ * “默认”的小数位数(32 位 fixedpt 宽度为 2 位,64 位宽度为 10 位);
+ * 若设为 -2,则返回“全部”数字,这意味着超出指定精度的那些位将是
+ * 无效的、虚假的数字。
  */
 void fixedpt_str(fixedpt A, char *str, int max_dec) {
 	int ndec = 0, slen = 0;
@@ -55,12 +61,13 @@ void fixedpt_str(fixedpt A, char *str, int max_dec) {
 	} while (fr != 0 && ndec < max_dec);
 
 	if (ndec > 1 && str[slen-1] == '0')
-		str[slen-1] = '\0'; /* cut off trailing 0 */
+		str[slen-1] = '\0'; /* cut off trailing 0 / 去掉末尾的 0 */
 	else
 		str[slen] = '\0';
 }
 
-/* Returns the square root of the given number, or -1 in case of error */
+/* Returns the square root of the given number, or -1 in case of error
+ * 返回给定数的平方根,出错时返回 -1 */
 fixedpt fixedpt_sqrt(fixedpt A) {
 	int invert = 0;
 	int iter = FIXEDPT_FBITS;
@@ -84,7 +91,7 @@ fixedpt fixedpt_sqrt(fixedpt A) {
 		}
 	}
 
-	/* Newton's iterations */
+	/* Newton's iterations / 牛顿迭代 */
 	l = (A >> 1) + 1;
 	for (i = 0; i < iter; i++)
 		l = (l + fixedpt_div(A, l)) >> 1;
@@ -94,7 +101,9 @@ fixedpt fixedpt_sqrt(fixedpt A) {
 }
 
 /* Returns the sine of the given fixedpt number. 
- * Note: the loss of precision is extraordinary! */
+ * Note: the loss of precision is extraordinary!
+ * 返回给定 fixedpt 数的正弦值。
+ * 注意:精度损失非常严重! */
 fixedpt fixedpt_sin(fixedpt fp) {
 	int sign = 1;
 	fixedpt sqr, result;
@@ -125,7 +134,8 @@ fixedpt fixedpt_sin(fixedpt fp) {
 	return sign * result;
 }
 
-/* Returns the value exp(x), i.e. e^x of the given fixedpt number. */
+/* Returns the value exp(x), i.e. e^x of the given fixedpt number.
+ * 返回给定 fixedpt 数 x 的 exp(x) 值,即 e^x。 */
 fixedpt fixedpt_exp(fixedpt fp) {
 	fixedpt xabs, k, z, R, xp;
 	const fixedpt LN2 = fixedpt_rconst(0.69314718055994530942);
@@ -148,7 +158,7 @@ fixedpt fixedpt_exp(fixedpt fp) {
 		k = -k;
 	fp -= fixedpt_mul(k, LN2);
 	z = fixedpt_mul(fp, fp);
-	/* Taylor */
+	/* Taylor / 泰勒展开 */
 	R = FIXEDPT_TWO +
 	    fixedpt_mul(z, EXP_P[0] + fixedpt_mul(z, EXP_P[1] +
 	    fixedpt_mul(z, EXP_P[2] + fixedpt_mul(z, EXP_P[3] +
@@ -161,7 +171,8 @@ fixedpt fixedpt_exp(fixedpt fp) {
 	return (fixedpt_mul(k, xp));
 }
 
-/* Returns the natural logarithm of the given fixedpt number. */
+/* Returns the natural logarithm of the given fixedpt number.
+ * 返回给定 fixedpt 数的自然对数。 */
 fixedpt fixedpt_ln(fixedpt x) {
 	fixedpt log2, xi;
 	fixedpt f, s, z, w, R;
