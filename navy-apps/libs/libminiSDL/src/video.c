@@ -46,9 +46,30 @@ void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
 }
 
 void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
-  for (int i = 0; i < (h == 0? s->h: h); i ++) {
-    NDL_DrawRect((uint32_t *)(s->pixels + (y + i) * s->pitch + x * s->format->BytesPerPixel), x, y + i, w == 0? s->w: w, 1);
+  if (w == 0) {
+    w = s->w;
   }
+  if (h == 0) {
+    h = s->h;
+  }
+
+  if (s->format->BytesPerPixel == 4) {
+    for (int i = 0; i < h; i ++) {
+      NDL_DrawRect((uint32_t *)(s->pixels + (y + i) * s->pitch + x * s->format->BytesPerPixel), x, y + i, w, 1);
+    }
+  } else {
+    for (int i = 0; i < h; i ++) {
+      uint32_t *real_pixels = malloc(w * 4);
+      for (int j = 0; j < w; j ++) {
+        SDL_Color rgb = (s->format->palette->colors[s->pixels[(y + i) * s->pitch + x * s->format->BytesPerPixel + j]]);
+        real_pixels[j] = rgb.r << 16 | rgb.g << 8 | rgb.b;
+      }
+      NDL_DrawRect(real_pixels, x, y + i, w, 1);
+      free(real_pixels);
+    }
+  }
+
+  
 }
 
 // APIs below are already implemented.

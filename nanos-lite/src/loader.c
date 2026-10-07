@@ -40,6 +40,10 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
   int fd = fs_open(filename, 0, 0);
   Elf32_Ehdr elf_head;
   fs_read(fd, &elf_head, sizeof(Elf32_Ehdr));
+  if (fd == -1) {
+    panic("没找到这个文件：%s", filename);
+  }
+
   assert(*(uint32_t *)elf_head.e_ident == 0x464C457F);
 
   Elf32_Off phoff = elf_head.e_phoff;

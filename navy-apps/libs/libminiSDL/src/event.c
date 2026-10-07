@@ -9,6 +9,8 @@ static const char *keyname[] = {
   _KEYS(keyname)
 };
 
+static uint8_t kbd_state[sizeof(keyname) / sizeof(keyname[0])];
+
 int SDL_PushEvent(SDL_Event *ev) {
   return 0;
 }
@@ -31,6 +33,11 @@ int SDL_PollEvent(SDL_Event *ev) {
   for (int i = 0; i < len; i ++) {
     if (strcmp(rest, keyname[i]) == 0) {
       ev->key.keysym.sym = i;
+      if (ev->type == SDL_KEYDOWN) {
+        kbd_state[i] = 1;
+      } else {
+        kbd_state[i] = 0;
+      }
       break;
     }
   }
@@ -49,5 +56,8 @@ int SDL_PeepEvents(SDL_Event *ev, int numevents, int action, uint32_t mask) {
 }
 
 uint8_t* SDL_GetKeyState(int *numkeys) {
-  return NULL;
+  if (numkeys != NULL) {
+    *numkeys = sizeof(keyname) / sizeof(keyname[0]);
+  }
+  return kbd_state;
 }
