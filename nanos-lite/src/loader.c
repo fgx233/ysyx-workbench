@@ -38,11 +38,13 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
   // }
   // return elf_head.e_entry;
   int fd = fs_open(filename, 0, 0);
+  if (fd == -1) {
+    Log("打开文件失败：%s", filename);
+    return -1;
+  }
   Elf32_Ehdr elf_head;
   fs_read(fd, &elf_head, sizeof(Elf32_Ehdr));
-  if (fd == -1) {
-    panic("没找到这个文件：%s", filename);
-  }
+  
 
   assert(*(uint32_t *)elf_head.e_ident == 0x464C457F);
 
@@ -70,6 +72,9 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
 
 void naive_uload(PCB *pcb, const char *filename) {
   uintptr_t entry = loader(pcb, filename);
+  if (entry == -1) {
+    return;
+  }
   Log("Jump to entry = %p, filename = %s", entry, filename);
   ((void(*)())entry) ();
 }
