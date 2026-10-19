@@ -11,6 +11,11 @@ extern "C" void inv(int pc) {
   invalid_inst((vaddr_t)pc);
 }
 
+extern "C" void csr_inv(int pc, int idx) {
+  printf("错误的csr指令编号 idx:%x\n", (word_t)idx);
+  invalid_inst((vaddr_t)pc);
+}
+
 void set_npc_state(int state, paddr_t pc, int halt_ret) {
   npc_state.state = state;
   npc_state.halt_pc = pc;

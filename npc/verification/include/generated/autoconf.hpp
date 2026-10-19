@@ -20,7 +20,7 @@
 // #define CONFIG_DEVICE 1
 // #define CONFIG_HAS_KEYBOARD 1
 // #define CONFIG_MODE_SYSTEM 1
-// #define CONFIG_DIFFTEST 1
+#define CONFIG_DIFFTEST 1
 // #define CONFIG_HAS_SERIAL 1
 // #define CONFIG_ISA_riscv 1
 // #define CONFIG_HAS_DISK 1
@@ -54,5 +54,5 @@
 #define CONFIG_IRINGBUF 1
 #define CONFIG_MTRACE 1
 #define CONFIG_FTRACE 1
-#define CONFIG_DIFFTEST 1
+// #define CONFIG_DIFFTEST 1
 #define CONFIG_WATCH_POINT 1

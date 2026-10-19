@@ -3,6 +3,7 @@ import chisel3.util._
 
 class top extends Module {
   val pc            = Module(new Pc)
+  val csr           = Module(new Csr)
   val regs          = Module(new Regs)
   val ram           = Module(new Ram)
   val ifu           = Module(new Ifu)
@@ -19,6 +20,7 @@ class top extends Module {
   idu.regsRdata1    := regs.rdata1
   idu.regsRdata2    := regs.rdata2
   idu.pc            := pc.rdata
+  idu.csrRdata      := csr.csrRdata
 
   exu.aluOprand1    := idu.aluOprand1
   exu.aluOprand2    := idu.aluOprand2
@@ -50,9 +52,22 @@ class top extends Module {
   wbu.exuRd         := exu.aluResult
   wbu.lsuRd         := lsu.cpuReadData2
   wbu.wbuChoose     := idu.wbuChoose
+  wbu.csrChoose     := idu.csrChoose
+  wbu.iduCsr        := idu.csrWdata
+  wbu.exuCsr        := exu.aluResult
 
   pc.wdata          := exu.pc
   pc.wen            := idu.pcEn
+  pc.isIntr         := idu.isIntr
+  pc.npc            := csr.npc
+
+  csr.isCsrCtl      := idu.isCsrCtl
+  csr.csrAddr       := idu.csrAddr
+  csr.csrWen        := idu.csrWen
+  csr.csrWdata      := wbu.csrWdata
+  csr.isEcall       := idu.isEcall
+  csr.isMret        := idu.isMret
+  csr.pc            := pc.rdata
 
   regs.raddr1       := idu.regsRaddr1
   regs.raddr2       := idu.regsRaddr2
@@ -72,4 +87,6 @@ class top extends Module {
   monitor.pc        := pc.rdata
   monitor.isEbreak  := idu.isEbreak
   monitor.isInvalid := idu.isInv
+  monitor.isCsrInv  := csr.isCsrInv
+  monitor.csrIdx    := csr.csrIdx
 }

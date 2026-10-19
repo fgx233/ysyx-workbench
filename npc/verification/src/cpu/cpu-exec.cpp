@@ -65,6 +65,96 @@ void close_context() {
 
 // npc寄存器数据
 riscv32e_NPC_state npc = {};
+#ifdef CONFIG_DIFFTEST
+riscv32e_NPC_state npc_pre = {};
+
+static void npc_pre_update() {
+  for (int i = 0; i < 16; i ++) {
+    npc_pre.gpr[i] = npc.gpr[i];
+  }
+}
+
+#define LB_KEY    0x00000003u
+#define LB_MASK   0x0000707Fu
+
+#define LBU_KEY   0x00004003u
+#define LBU_MASK  0x0000707Fu
+
+#define LH_KEY    0x00001003u
+#define LH_MASK   0x0000707Fu
+
+#define LHU_KEY   0x00005003u
+#define LHU_MASK  0x0000707Fu
+
+#define LW_KEY    0x00002003u
+#define LW_MASK   0x0000707Fu
+
+#define SB_KEY    0x00000023u
+#define SB_MASK   0x0000707Fu
+
+#define SH_KEY    0x00001023u
+#define SH_MASK   0x0000707Fu
+
+#define SW_KEY    0x00002023u
+#define SW_MASK   0x0000707Fu
+
+#define CSRRW_KEY   0x00001073u
+#define CSRRW_MASK  0x0000707Fu
+
+#define CSRRS_KEY   0x00002073u
+#define CSRRS_MASK  0x0000707Fu
+
+#define INST_MATCH(inst, name) \
+    (((inst) & name##_MASK) == name##_KEY)
+
+static void jump_diff(uint32_t inst) {
+  bool is_load = (INST_MATCH(inst, LB) || INST_MATCH(inst, LBU) ||
+                  INST_MATCH(inst, LH) || INST_MATCH(inst, LHU) ||
+                  INST_MATCH(inst, LW));
+  bool is_stroe= (INST_MATCH(inst, SB) || INST_MATCH(inst, SH) ||
+                  INST_MATCH(inst, SW));
+
+  bool is_csr  = (INST_MATCH(inst, CSRRW) || INST_MATCH(inst, CSRRS));
+
+  if (!(is_load || is_stroe || is_csr)) {
+    return;
+  }
+
+  if (is_load) {
+    word_t immI = SEXT(BITS(inst, 31, 20), 12);
+    int rs1 = BITS(inst, 19, 15);
+    word_t src1 = npc_pre.gpr[rs1];
+    word_t addr = src1 + immI;
+    if (addr - CONFIG_RTC_MMIO < 8) {
+      difftest_skip_ref();
+    }
+    return;
+  }
+
+  if (is_stroe) {
+    word_t immS = (SEXT(BITS(inst, 31, 25), 7) << 5) | BITS(inst, 11, 7);
+    int rs1 = BITS(inst, 19, 15);
+    word_t src1 = npc_pre.gpr[rs1];
+    word_t addr = src1 + immS;
+    if (addr == CONFIG_SERIAL_MMIO) {
+      difftest_skip_ref();
+    }
+    return;
+  }
+
+  if (is_csr) {
+    word_t immI = BITS(inst, 31, 20);
+    switch (immI)
+    {
+    case 0xB00:
+    case 0xB80:
+    case 0xF11:
+    case 0xF12: difftest_skip_ref(); break;
+    default: break;
+    }
+  }
+}
+#endif
 
 static void statistic() {
   IFNDEF(CONFIG_TARGET_AM, setlocale(LC_NUMERIC, ""));
@@ -85,6 +175,10 @@ void assert_fail_msg() {
 void npc_sync() {
   auto *r = top->rootp;
   npc.pc = r->top__DOT__pc__DOT__pcReg;
+  npc.mepc = r->top__DOT__csr__DOT__mepc;
+  npc.mstatus = r->top__DOT__csr__DOT__mstatus;
+  npc.mcause = r->top__DOT__csr__DOT__mcause;
+  npc.mtvec = r->top__DOT__csr__DOT__mtvec;
 
   npc.gpr[0] = r->top__DOT__regs__DOT__regs_0;
   npc.gpr[1] = r->top__DOT__regs__DOT__regs_1;
@@ -110,7 +204,14 @@ static void trace_and_difftest(Decode *_this) {
 #endif
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
   IFDEF(CONFIG_IRINGBUF, iringbuf_insert(_this->logbuf));
-  IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc));
+
+#ifdef CONFIG_DIFFTEST
+  if (npc_state.state == NPC_RUNNING) {
+    jump_diff(_this->isa.inst);
+    difftest_step(_this->pc);
+  }
+  
+#endif
   IFDEF(CONFIG_WATCH_POINT, check_wp());
 }
 
@@ -154,6 +255,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
 static void execute(uint64_t n) {
   Decode s;
   for (;n > 0; n --) {
+    IFDEF(CONFIG_DIFFTEST, npc_pre_update());
     exec_once(&s, npc.pc);
     g_nr_guest_inst ++;
     trace_and_difftest(&s);

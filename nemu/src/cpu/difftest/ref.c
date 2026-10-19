@@ -23,6 +23,10 @@ static void diff_set_regs(CPU_state *dut) {
     cpu.gpr[i] = dut->gpr[i];
   }
   cpu.pc = dut->pc;
+  cpu.mepc = dut->mepc;
+  cpu.mstatus = dut->mstatus;
+  cpu.mcause = dut->mcause;
+  cpu.mtvec = dut->mtvec;
 }
 
 static void diff_get_regs(CPU_state *ref) {
@@ -30,6 +34,10 @@ static void diff_get_regs(CPU_state *ref) {
     ref->gpr[i] = cpu.gpr[i];
   }
   ref->pc = cpu.pc;
+  ref->mepc = cpu.mepc;
+  ref->mstatus = cpu.mstatus;
+  ref->mcause = cpu.mcause;
+  ref->mtvec = cpu.mtvec;
 }
 
 __EXPORT void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {

@@ -14,6 +14,11 @@ object WbuChoose {
   val lsu = 2.U(2.W)
 }
 
+object CsrChoose {
+  val idu = 0.U(1.W)
+  val exu = 1.U(1.W)
+}
+
 object AluOpcode {
   val add         = 0.U(4.W)
   val sub         = 1.U(4.W)

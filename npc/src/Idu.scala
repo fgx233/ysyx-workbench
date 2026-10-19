@@ -15,9 +15,16 @@ class Idu extends Module {
   val regsWen         = IO(Output(Bool()))
   val regsWaddr       = IO(Output(UInt(4.W)))
   val regsWdata       = IO(Output(UInt(32.W)))
+  // CSR寄存器写入
+  val csrWen          = IO(Output(Bool()))
+  val csrAddr         = IO(Output(UInt(12.W)))
+  val csrWdata        = IO(Output(UInt(32.W)))
+  val csrRdata        = IO(Input(UInt(32.W)))
+  val isCsrCtl        = IO(Output(Bool()))
   // pc输入   
   val pc              = IO(Input(UInt(32.W)))
   val pcEn            = IO(Output(Bool()))
+  val isIntr          = IO(Output(Bool()))
   // 内存读写控制
   val cpuReadEn2      = IO(Output(Bool()))
   val cpuReadLen2     = IO(Output(UInt(2.W)))
@@ -27,6 +34,7 @@ class Idu extends Module {
   val cpuWriteLen     = IO(Output(UInt(2.W)))
   // WBU输入选择    
   val wbuChoose       = IO(Output(UInt(2.W)))
+  val csrChoose       = IO(Output(UInt(1.W)))
   // ALU数据控制    
   val aluOprand1      = IO(Output(UInt(32.W)))
   val aluOprand2      = IO(Output(UInt(32.W)))
@@ -38,6 +46,8 @@ class Idu extends Module {
   // 特殊控制信号
   val isEbreak        = IO(Output(Bool()))
   val isInv           = IO(Output(Bool()))
+  val isEcall         = IO(Output(Bool()))
+  val isMret          = IO(Output(Bool()))
     
     
   // 译码逻辑   
@@ -78,13 +88,18 @@ class Idu extends Module {
   val isBgeu          = BitPat("b???????_?????_?????_111_?????_11000_11") === inst
   val isJal           = BitPat("b???????_?????_?????_???_?????_11011_11") === inst
   val isJalr          = BitPat("b???????_?????_?????_000_?????_11001_11") === inst
+  val isCsrrw         = BitPat("b???????_?????_?????_001_?????_11100_11") === inst
+  val isCsrrs         = BitPat("b???????_?????_?????_010_?????_11100_11") === inst
+  isEcall             := BitPat("b0000000_00000_00000_000_00000_11100_11") === inst
+  isMret              := BitPat("b0011000_00010_00000_000_00000_11100_11") === inst
   isEbreak            := BitPat("b0000000_00001_00000_000_00000_11100_11") === inst
   isInv               := !(isLui || isAuipc || isAdd ||isAddi || isSub || isAnd ||
                          isAndi || isOr || isOri  || isXor  || isXori || isSll ||
                          isSlli || isSrl  || isSrli || isSra  || isSrai || isSlt ||
                          isSlti || isSltu || isSltiu|| isLb || isLbu || isLh ||
                          isLhu || isLw || isSb || isSh || isSw || isBeq  || isBne ||
-                         isBlt || isBge || isBltu || isBgeu || isJal  || isJalr || isEbreak)
+                         isBlt || isBge || isBltu || isBgeu || isJal  || isJalr || isEbreak ||
+                         isCsrrs || isCsrrw || isEcall || isMret)
   // 寄存器读取逻辑
   val rs1             = inst(19,15)
   val rs2             = inst(24,20)
@@ -95,6 +110,7 @@ class Idu extends Module {
   // pc使能
   pcEn                := true.B
   cpuWriteData        := src2
+  isIntr              := isEcall || isMret
   
   // 立即数提取逻辑
   val immI            = inst(31,20).asSInt.pad(32).asUInt
@@ -124,15 +140,25 @@ class Idu extends Module {
   ))
   // 写寄存器逻辑
   regsWaddr           := inst(10,7)
-  regsWdata           := Mux(isLui, imm, 0.U(32.W))
-  regsWen             := Mux(typeS || typeB || isEbreak || isInv, false.B, true.B)
+  // regsWdata           := Mux(isLui, imm, 0.U(32.W))
+  regsWdata           := MuxCase(0.U(32.W), Seq(
+    isLui             -> imm,
+    (isCsrrs||isCsrrw)-> csrRdata
+  ))
+  regsWen             := Mux(typeS || typeB || isEbreak || isInv || isEcall || isMret, false.B, true.B)
+  // csr寄存器控制逻辑
+  csrChoose           := Mux(isCsrrw, CsrChoose.idu, CsrChoose.exu)
+  csrWen              := isCsrrw || (isCsrrs && (rs1 =/= 0.U))
+  csrWdata            := src1
+  csrAddr             := immI
+  isCsrCtl            := isCsrrw || isCsrrs
   // alu控制信号逻辑
   val needAdd         = isAdd   || isAddi || isAuipc || isJal || isJalr ||
                         isLb    || isLbu  || isLh    || isLhu || isLw   ||
                         isSb    || isSh   || isSw
   val needSub         = isSub 
   val needAnd         = isAnd   || isAndi 
-  val needOr          = isOr    || isOri
+  val needOr          = isOr    || isOri || isCsrrs
   val needXor         = isXor   || isXori
   val needEqu         = isBeq 
   val needNeq         = isBne 
@@ -182,7 +208,8 @@ class Idu extends Module {
     typeB             -> src2,
     typeR             -> src2,
     typeJ             -> "d4".U(32.W),
-    isJalr            -> "d4".U(32.W)
+    isJalr            -> "d4".U(32.W),
+    isCsrrs           -> csrRdata
   ))
   // pc计算逻辑
   pcOprand1           := Mux(isJalr, src1, pc)
@@ -193,8 +220,8 @@ class Idu extends Module {
   isUncondjmp         := isJal || isJalr
   // WBU输入选择
   wbuChoose           := MuxCase(WbuChoose.exu, Seq(
-    isLui             -> WbuChoose.idu,
-    cpuReadEn2        -> WbuChoose.lsu
+    (isLui || isCsrrs || isCsrrw) -> WbuChoose.idu,
+    cpuReadEn2                    -> WbuChoose.lsu
   ))
 
 }

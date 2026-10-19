@@ -33,7 +33,6 @@ void (*ref_difftest_raise_intr)(uint64_t NO) = NULL;
 #ifdef CONFIG_DIFFTEST
 
 static bool is_skip_ref = false;
-static bool is_skip_ref_next = false;
 
 static inline bool difftest_check_reg(const char *name, vaddr_t pc, word_t ref, word_t dut) {
   if (ref != dut) {
@@ -55,6 +54,19 @@ bool isa_difftest_checkregs(riscv32e_NPC_state *ref_r, vaddr_t pc) {
   if (!difftest_check_reg("pc", pc, ref_r->pc, npc.pc)) {
     is_right = false;
   }
+  if (!difftest_check_reg("mepc", pc, ref_r->mepc, npc.mepc)) {
+    is_right = false;
+  }
+  if (!difftest_check_reg("mstatus", pc, ref_r->mstatus, npc.mstatus)) {
+    is_right = false;
+  }
+  if (!difftest_check_reg("mcause", pc, ref_r->mcause, npc.mcause)) {
+    is_right = false;
+  }
+  if (!difftest_check_reg("mtvec", pc, ref_r->mtvec, npc.mtvec)) {
+    is_right = false;
+  }
+  
 
   return is_right;
 }
@@ -64,13 +76,6 @@ bool isa_difftest_checkregs(riscv32e_NPC_state *ref_r, vaddr_t pc) {
 void difftest_skip_ref() {
   is_skip_ref = true;
 }
-
-void difftest_skip_ref_next() {
-  is_skip_ref_next = true;
-}
-
-
-
 
 void init_difftest(char *ref_so_file, long img_size, int port) {
   assert(ref_so_file != NULL);
@@ -115,26 +120,10 @@ static void checkregs(riscv32e_NPC_state *ref, vaddr_t pc) {
 void difftest_step(vaddr_t pc) {
   riscv32e_NPC_state ref_r;
 
-  // if (is_skip_ref) {
-  //   ref_difftest_regcpy(&npc, DIFFTEST_TO_REF);
-  //   is_skip_ref = false;
-  //   return;
-  // }
-
-  if (is_skip_ref || is_skip_ref_next) {
-    if (is_skip_ref && is_skip_ref_next) {
-      ref_difftest_regcpy(&npc, DIFFTEST_TO_REF);
-      is_skip_ref_next = false;
-      return;
-    } else if (is_skip_ref) {
-      ref_difftest_regcpy(&npc, DIFFTEST_TO_REF);
-      is_skip_ref = false;
-      return;
-    } else {
-      is_skip_ref_next = false;
-      is_skip_ref = true;
-    }
-
+  if (is_skip_ref) {
+    ref_difftest_regcpy(&npc, DIFFTEST_TO_REF);
+    is_skip_ref = false;
+    return;
   }
 
   ref_difftest_exec(1);

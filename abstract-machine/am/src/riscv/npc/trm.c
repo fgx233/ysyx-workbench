@@ -1,4 +1,5 @@
 #include <am.h>
+#include <klib.h>
 #include <npc.h>
 
 
@@ -22,7 +23,12 @@ void halt(int code) {
   while (1);
 }
 
+#define csr_read(csr) ({ uint32_t __v; \
+    asm volatile ("csrr %0, " #csr : "=r"(__v)); __v; })
+
 void _trm_init() {
+  printf("mvendorid: %x\n", csr_read(mvendorid));
+  printf("marchid: %x\n", csr_read(marchid));
   int ret = main(mainargs);
   halt(ret);
 }

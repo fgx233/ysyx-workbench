@@ -8,10 +8,19 @@ class Wbu extends Module {
   val lsuRd     = IO(Input(UInt(32.W)))
   val wbuChoose = IO(Input(UInt(2.W)))
   val rd        = IO(Output(UInt(32.W)))
+  val iduCsr    = IO(Input(UInt(32.W)))
+  val exuCsr    = IO(Input(UInt(32.W)))
+  val csrChoose = IO(Input(UInt(1.W)))
+  val csrWdata  = IO(Output(UInt(32.W)))
 
   rd := MuxLookup(wbuChoose, exuRd)(Seq(
     WbuChoose.idu -> iduRd,
     WbuChoose.exu -> exuRd,
     WbuChoose.lsu -> lsuRd
+  ))
+
+  csrWdata := MuxLookup(csrChoose, iduCsr)(Seq(
+    CsrChoose.idu -> iduCsr,
+    CsrChoose.exu -> exuCsr
   ))
 }

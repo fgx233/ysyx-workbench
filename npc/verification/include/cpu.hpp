@@ -6,6 +6,10 @@
 typedef struct {
   word_t gpr[16];
   paddr_t pc;
+  word_t mepc;
+  word_t mstatus;
+  word_t mcause;
+  word_t mtvec;
 } riscv32e_NPC_state;
 
 typedef struct {
