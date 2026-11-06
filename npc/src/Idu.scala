@@ -1,56 +1,35 @@
 import chisel3._
 import chisel3.util._
-import common._
 
-// 负责根据IDU给出的指令，把这个指令的信息提取出来，送给EXU和LSU
+/* 
+功能：接收ifu取出来的指令，根据这条指令，给出指导ISA状态机跳转的次态信息，把这些信息打包传给exu
+状态：
+1、等待valid
+2、等待ready
+ */
+
+object Idu {
+  object State extends ChiselEnum {
+    val sWaitValid, sWaitReady = Value
+  }
+}
+
 class Idu extends Module {
-  // 指令输入
-  val inst            = IO(Input(UInt(32.W)))
-  // 寄存器读取   
-  val regsRaddr1      = IO(Output(UInt(4.W)))
-  val regsRdata1      = IO(Input(UInt(32.W)))
-  val regsRaddr2      = IO(Output(UInt(4.W)))
-  val regsRdata2      = IO(Input(UInt(32.W)))
-  // 寄存器写入   
-  val regsWen         = IO(Output(Bool()))
-  val regsWaddr       = IO(Output(UInt(4.W)))
-  val regsWdata       = IO(Output(UInt(32.W)))
-  // CSR寄存器写入
-  val csrWen          = IO(Output(Bool()))
-  val csrAddr         = IO(Output(UInt(12.W)))
-  val csrWdata        = IO(Output(UInt(32.W)))
-  val csrRdata        = IO(Input(UInt(32.W)))
-  val isCsrCtl        = IO(Output(Bool()))
-  // pc输入   
-  val pc              = IO(Input(UInt(32.W)))
-  val pcEn            = IO(Output(Bool()))
-  val isIntr          = IO(Output(Bool()))
-  // 内存读写控制
-  val cpuReadEn2      = IO(Output(Bool()))
-  val cpuReadLen2     = IO(Output(UInt(2.W)))
-  val cpuReadSign2    = IO(Output(Bool()))
-  val cpuWriteData    = IO(Output(UInt(32.W)))
-  val cpuWriteEn      = IO(Output(Bool()))
-  val cpuWriteLen     = IO(Output(UInt(2.W)))
-  // WBU输入选择    
-  val wbuChoose       = IO(Output(UInt(2.W)))
-  val csrChoose       = IO(Output(UInt(1.W)))
-  // ALU数据控制    
-  val aluOprand1      = IO(Output(UInt(32.W)))
-  val aluOprand2      = IO(Output(UInt(32.W)))
-  val aluOpcode       = IO(Output(UInt(4.W)))
-  val pcOprand1       = IO(Output(UInt(32.W)))
-  val pcOprand2       = IO(Output(UInt(32.W)))
-  val isBranch        = IO(Output(Bool()))
-  val isUncondjmp     = IO(Output(Bool()))
-  // 特殊控制信号
-  val isEbreak        = IO(Output(Bool()))
-  val isInv           = IO(Output(Bool()))
-  val isEcall         = IO(Output(Bool()))
-  val isMret          = IO(Output(Bool()))
-    
-    
-  // 译码逻辑   
+  import Idu.State._
+
+  val io = IO(new Bundle {
+    val pc = Input(UInt(32.W))
+    val regs = Flipped(new RegsToIduPort)
+    val csrs = Flipped(new CsrsToIduPort)
+    val in = Flipped(Decoupled(new IfuToIduPort))
+    val out = Decoupled(new IduToExuPort)
+    val monitor = new IduToMonitorPort
+  })
+
+  val inst = Reg(UInt(32.W))
+  val state = RegInit(sWaitValid)
+
+    // 译码逻辑   
   val isLui           = BitPat("b???????_?????_?????_???_?????_01101_11") === inst
   val isAuipc         = BitPat("b???????_?????_?????_???_?????_00101_11") === inst
   val isAdd           = BitPat("b0000000_?????_?????_000_?????_01100_11") === inst
@@ -90,36 +69,23 @@ class Idu extends Module {
   val isJalr          = BitPat("b???????_?????_?????_000_?????_11001_11") === inst
   val isCsrrw         = BitPat("b???????_?????_?????_001_?????_11100_11") === inst
   val isCsrrs         = BitPat("b???????_?????_?????_010_?????_11100_11") === inst
-  isEcall             := BitPat("b0000000_00000_00000_000_00000_11100_11") === inst
-  isMret              := BitPat("b0011000_00010_00000_000_00000_11100_11") === inst
-  isEbreak            := BitPat("b0000000_00001_00000_000_00000_11100_11") === inst
-  isInv               := !(isLui || isAuipc || isAdd ||isAddi || isSub || isAnd ||
+  val isEcall         = BitPat("b0000000_00000_00000_000_00000_11100_11") === inst
+  val isMret          = BitPat("b0011000_00010_00000_000_00000_11100_11") === inst
+  val isEbreak        = BitPat("b0000000_00001_00000_000_00000_11100_11") === inst
+  val isInvalid       = !(isLui || isAuipc || isAdd ||isAddi || isSub || isAnd ||
                          isAndi || isOr || isOri  || isXor  || isXori || isSll ||
                          isSlli || isSrl  || isSrli || isSra  || isSrai || isSlt ||
                          isSlti || isSltu || isSltiu|| isLb || isLbu || isLh ||
                          isLhu || isLw || isSb || isSh || isSw || isBeq  || isBne ||
                          isBlt || isBge || isBltu || isBgeu || isJal  || isJalr || isEbreak ||
                          isCsrrs || isCsrrw || isEcall || isMret)
-  // 寄存器读取逻辑
-  val rs1             = inst(19,15)
-  val rs2             = inst(24,20)
-  val src1            = regsRdata1
-  regsRaddr1          := rs1
-  val src2            = regsRdata2
-  regsRaddr2          := rs2
-  // pc使能
-  pcEn                := true.B
-  cpuWriteData        := src2
-  isIntr              := isEcall || isMret
-  
-  // 立即数提取逻辑
+
   val immI            = inst(31,20).asSInt.pad(32).asUInt
   val immU            = inst(31,12) << 12
   val immS            = Cat(inst(31,25), inst(11,7)).asSInt.pad(32).asUInt
   val immJ            = Cat(inst(31), inst(19,12), inst(20), inst(30,21), 0.U(1.W)).asSInt.pad(32).asUInt
   val immB            = Cat(inst(31), inst(7), inst(30,25), inst(11,8), 0.U(1.W)).asSInt.pad(32).asUInt
 
-  // 指令类型判断逻辑
   val typeI           = isAddi  || isAndi   || isJalr || isLb   || isLbu  ||
                         isLh    || isLhu    || isLw   || isOri  || isSlli ||
                         isSlti  || isSltiu  || isSrai || isSrli || isXori
@@ -138,90 +104,206 @@ class Idu extends Module {
     typeB             -> immB,
     typeU             -> immU
   ))
-  // 写寄存器逻辑
-  regsWaddr           := inst(10,7)
-  // regsWdata           := Mux(isLui, imm, 0.U(32.W))
-  regsWdata           := MuxCase(0.U(32.W), Seq(
-    isLui             -> imm,
-    (isCsrrs||isCsrrw)-> csrRdata
-  ))
-  regsWen             := Mux(typeS || typeB || isEbreak || isInv || isEcall || isMret, false.B, true.B)
-  // csr寄存器控制逻辑
-  csrChoose           := Mux(isCsrrw, CsrChoose.idu, CsrChoose.exu)
-  csrWen              := isCsrrw || (isCsrrs && (rs1 =/= 0.U))
-  csrWdata            := src1
-  csrAddr             := immI
-  isCsrCtl            := isCsrrw || isCsrrs
-  // alu控制信号逻辑
-  val needAdd         = isAdd   || isAddi || isAuipc || isJal || isJalr ||
-                        isLb    || isLbu  || isLh    || isLhu || isLw   ||
-                        isSb    || isSh   || isSw
-  val needSub         = isSub 
-  val needAnd         = isAnd   || isAndi 
-  val needOr          = isOr    || isOri || isCsrrs
-  val needXor         = isXor   || isXori
-  val needEqu         = isBeq 
-  val needNeq         = isBne 
-  val needLargeOrEquS = isBge 
-  val needLargeOrEquU = isBgeu  
-  val needSmallS      = isBlt   || isSlt  || isSlti
-  val needSmallU      = isBltu  || isSltu || isSltiu
-  val needLeftShiftU  = isSll   || isSlli
-  val needRightShiftS = isSra   || isSrai
-  val needRightShiftU = isSrl   || isSrli
-//内存读写使能
-  cpuReadEn2          := isLb || isLbu || isLh || isLhu || isLw
-  cpuReadLen2         := Mux1H(Seq(
-    isLb              -> RamLen.one,
-    isLbu             -> RamLen.one,
-    isLh              -> RamLen.two,
-    isLhu             -> RamLen.two,
-    isLw              -> RamLen.four
-  ))
-  cpuReadSign2        := Mux(isLb || isLh, true.B, false.B)
-  cpuWriteEn          := typeS
-  cpuWriteLen         := Mux1H(Seq(
-    isSb              -> RamLen.one,
-    isSh              -> RamLen.two,
-    isSw              -> RamLen.four
-  ))
-// alu控制信号选择
-  aluOpcode           := Mux1H(Seq(
-    needAdd           -> AluOpcode.add,
-    needSub           -> AluOpcode.sub,
-    needAnd           -> AluOpcode.and,
-    needOr            -> AluOpcode.or,
-    needXor           -> AluOpcode.xor,
-    needEqu           -> AluOpcode.equ,
-    needNeq           -> AluOpcode.neq,
-    needLargeOrEquS   -> AluOpcode.largeOrEquS,
-    needLargeOrEquU   -> AluOpcode.largeOrEquU,
-    needSmallS        -> AluOpcode.smallS,
-    needSmallU        -> AluOpcode.smallU,
-    needLeftShiftU    -> AluOpcode.leftShiftU,
-    needRightShiftS   -> AluOpcode.rightShiftS,
-    needRightShiftU   -> AluOpcode.rightShiftU
-  ))
-  // alu操作数选择逻辑
-  aluOprand1          := Mux(isAuipc || isJal || isJalr, pc, src1)
-  aluOprand2          := MuxCase(imm, Seq(
-    typeB             -> src2,
-    typeR             -> src2,
-    typeJ             -> "d4".U(32.W),
-    isJalr            -> "d4".U(32.W),
-    isCsrrs           -> csrRdata
-  ))
-  // pc计算逻辑
-  pcOprand1           := Mux(isJalr, src1, pc)
-  pcOprand2           := imm
-  // 是否为条件分支
-  isBranch            := typeB
-  // 是否为无条件分支
-  isUncondjmp         := isJal || isJalr
-  // WBU输入选择
-  wbuChoose           := MuxCase(WbuChoose.exu, Seq(
-    (isLui || isCsrrs || isCsrrw) -> WbuChoose.idu,
-    cpuReadEn2                    -> WbuChoose.lsu
+
+  val rAddr1          = inst(18,15)
+  val rAddr2          = inst(23,20)
+  io.regs.rAddr1      := rAddr1
+  io.regs.rAddr2      := rAddr2
+
+  val rAddrCsr        = immI
+  io.csrs.rAddr       := rAddrCsr
+
+
+//exuAction
+  val onlyTransfer    = isLui || isBeq || isBne || isBlt || isCsrrw ||
+                        isBge || isBltu || isBgeu
+  val computeReg      = isAuipc || isAdd || isAddi || isSub || isAnd || isAndi ||
+                        isOr || isOri || isXor || isXori || isSll || isSlli ||
+                        isSrl || isSrli || isSra || isSrai || isSlt || isSlti ||
+                        isSltu || isSltiu || isJal || isJalr
+  val computeCsr      = isCsrrs
+  val computeAddr     = isLb || isLbu || isLh || isLhu ||
+                        isLw || isSb || isSh || isSw
+  io.out.bits.exuAction := Mux1H(Seq(
+    onlyTransfer        -> ExuAction.onlyTransfer,
+    computeReg          -> ExuAction.computeReg,
+    computeCsr          -> ExuAction.computeCsr,
+    computeAddr         -> ExuAction.computeAddr
   ))
 
+  //aluOption
+  val add             = isAuipc || isAdd || isAddi || isLb || isLbu || isLh ||
+                        isLhu || isLw || isSb || isSh || isSw || isJal ||
+                        isJalr
+  val sub             = isSub
+  val and             = isAnd || isAndi
+  val or              = isOr || isOri || isCsrrs
+  val xor             = isXor || isXori
+  val llshift         = isSll || isSlli
+  val lrshift         = isSrl || isSrli
+  val arshift         = isSra || isSrai
+  val sless           = isSlt || isSlti
+  val uless           = isSltu || isSltiu
+  io.out.bits.aluOption := MuxCase(AluOption.add ,Seq(
+    add                 -> AluOption.add,
+    sub                 -> AluOption.sub,
+    and                 -> AluOption.and,
+    or                  -> AluOption.or,
+    xor                 -> AluOption.xor,
+    llshift             -> AluOption.llshift,
+    lrshift             -> AluOption.lrshift,
+    arshift             -> AluOption.arshift,
+    sless               -> AluOption.sless,
+    uless               -> AluOption.uless
+  ))
+
+  //aluOprand1
+  /* 
+  1.pc
+  2.src1
+   */
+  val aluOprand1FromPc = isAuipc || isJal || isJalr
+  val aluOprand1FromSrc1 = !aluOprand1FromPc
+  io.out.bits.aluOprand1 := Mux1H(Seq(
+    aluOprand1FromPc     -> io.pc,
+    aluOprand1FromSrc1   -> io.regs.src1
+  ))
+
+  //aluOprand2
+  /* 
+  1.imm
+  2.src2
+  3.4
+  4.csr
+   */
+  val aluOprand2FromImm = isAuipc || isAddi || isAndi || isOri || isXori || isSlli ||
+                          isSrli  || isSrai || isSlti || isSltiu || isLb || isLbu ||
+                          isLh || isLhu || isLw || isSb || isSh || isSw
+  val aluOprand2FromFix = isJal || isJalr
+  val aluOprand2FromCsr = isCsrrs
+  val aluOprand2FromSrc2= !(aluOprand2FromImm || aluOprand2FromFix || aluOprand2FromCsr)
+  io.out.bits.aluOprand2 := Mux1H(Seq(
+    aluOprand2FromImm    -> imm,
+    aluOprand2FromSrc2   -> io.regs.src2,
+    aluOprand2FromFix    -> 4.U(32.W),
+    aluOprand2FromCsr    -> io.csrs.rData
+  ))
+  
+
+  //pcOprand1
+  /* 
+  1.PC
+  2.src1
+   */
+  val pcOprand1FromSrc1   = isJalr 
+  val pcOprand1FromPc     = !pcOprand1FromSrc1
+  io.out.bits.pcOprand1   := Mux1H(Seq(
+    pcOprand1FromSrc1     -> io.regs.src1,
+    pcOprand1FromPc       -> io.pc
+  ))
+
+  //pcOprand2
+  /* 
+  1.4
+  2.imm
+   */
+  val equ                 = io.regs.src1 === io.regs.src2
+  val neq                 = io.regs.src1 =/= io.regs.src2
+  val signedLess          = io.regs.src1.asSInt < io.regs.src2.asSInt
+  val signedLarge         = io.regs.src1.asSInt >= io.regs.src2.asSInt
+  val unsignedLess        = io.regs.src1 < io.regs.src2
+  val unsignedLarge       = io.regs.src1 >= io.regs.src2
+  val pcOprand2FromImm    = (isBeq && equ)|| 
+                            (isBne  && neq)|| 
+                            (isBlt  && signedLess)|| 
+                            (isBge  && signedLarge)|| 
+                            (isBltu && unsignedLess)|| 
+                            (isBgeu && unsignedLarge)||
+                            isJal  || isJalr
+  val pcOprand2FromFix    = !pcOprand2FromImm
+  io.out.bits.pcOprand2   := Mux1H(Seq(
+    pcOprand2FromImm      -> imm,
+    pcOprand2FromFix      -> 4.U(32.W)
+  )) 
+
+  //memAddr
+  io.out.bits.memAddr     := 0.U(32.W)
+  //memRdEn
+  io.out.bits.memRdEn     := isLb || isLbu || isLh || isLhu || isLw
+  //memWrEn
+  io.out.bits.memWrEn     := isSb || isSh || isSw
+  //memWrData
+  io.out.bits.memWrData   := io.regs.src2
+  //memLen
+  val one                 = isLb || isLbu || isSb
+  val two                 = isLh || isLhu || isSh
+  val four                = isLw || isSw
+  io.out.bits.memLen      := MuxCase(LsuByteLen.one, Seq(
+    one                   -> LsuByteLen.one,
+    two                   -> LsuByteLen.two,
+    four                  -> LsuByteLen.four
+  ))
+  //memSign
+  val signed              = isLb || isLh || isLw
+  val unsigned            = isLbu || isLhu
+  io.out.bits.memSign     := Mux1H(Seq(
+    signed                -> LsuSign.signed,
+    unsigned              -> LsuSign.unsigned
+  ))
+
+  //regsWaddr
+  io.out.bits.regsWaddr   := inst(10,7)
+  //regsWdata
+  val regsWdataFromImm    = isLui
+  val regsWdataFromCsr    = isCsrrw || isCsrrs
+  io.out.bits.regsWdata   := Mux1H(Seq(
+    regsWdataFromImm      -> imm,
+    regsWdataFromCsr      -> io.csrs.rData
+  ))
+  //regsWen
+  io.out.bits.regsWen     := !(isBeq || isBne || isBlt || isBge || isBltu || isBgeu ||
+                               isSb  || isSh || isSw)
+
+  //pcWdata
+  io.out.bits.pcWdata     := Mux1H(Seq(
+    isEcall               -> io.csrs.mtvec,
+    isMret                -> io.csrs.mepc
+  ))
+  //pcWen
+  io.out.bits.pcWen       := true.B
+
+  //csrWaddr
+  io.out.bits.csrWaddr    := inst(31,20)
+  //csrWdata
+  io.out.bits.csrWdata    := Mux(isEcall, io.pc, io.regs.src1)
+  //csrWen
+  io.out.bits.csrWen      := isCsrrs || isCsrrw || isEcall || isMret
+
+  //isEcall,isMret
+  io.out.bits.isEcall     := isEcall
+  io.out.bits.isMret      := isMret
+
+  //isEbreak,isInvalid
+  io.monitor.pc           := io.pc
+  io.monitor.isEbreak     := Mux(state === sWaitReady, isEbreak, false.B)
+  io.monitor.isInvalid    := Mux(state === sWaitReady, isInvalid, false.B)
+
+  when (io.in.valid && io.in.ready) {
+    inst := io.in.bits.inst
+  }
+
+  io.in.ready             := state === sWaitValid
+  io.out.valid            := state === sWaitReady
+  switch (state) {
+    is (sWaitValid) {
+      when (io.in.valid && io.in.ready) {
+        state := sWaitReady
+      }
+    }
+    is (sWaitReady) {
+      when (io.out.valid && io.out.ready) {
+        state := sWaitValid
+      }
+    }
+  }
 }

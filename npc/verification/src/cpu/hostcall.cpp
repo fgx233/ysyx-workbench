@@ -3,11 +3,17 @@
 #include "cpu.hpp"
 #include "Vtop__Dpi.h"
 
+extern "C" void inst_commit() {
+  set_commit();
+}
+
 extern "C" void ebreak(int pc) {
+  set_stop();
   set_npc_state(NPC_END, (vaddr_t)pc, npc.gpr[10]);
 }
 
 extern "C" void inv(int pc) {
+   set_stop();
   invalid_inst((vaddr_t)pc);
 }
 

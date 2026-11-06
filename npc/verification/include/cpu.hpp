@@ -24,6 +24,9 @@ typedef struct Decode {
   IFDEF(CONFIG_ITRACE, char logbuf[128]);
 } Decode;
 // cpu-exec.c
+void set_commit();
+void set_stop();
+
 void tick();
 
 void reset(int i);

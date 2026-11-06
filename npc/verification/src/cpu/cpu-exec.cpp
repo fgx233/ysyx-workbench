@@ -22,10 +22,30 @@ VerilatedFstC *tfp = nullptr;
 // 电路对象指针
 Vtop* top = nullptr;
 
+// WBU提交标志
+static bool commit = false;
+static bool stop = false;
+
+void set_commit() {
+  commit = true;
+}
+
+void set_stop() {
+  stop = true;
+}
+
 // 时钟从低电平翻到高电平，再从高电平翻到低电平
 void tick() {
   top->clock = 0; top->eval(); tfp->dump(contextp->time()); contextp->timeInc(1);
   top->clock = 1; top->eval(); tfp->dump(contextp->time()); contextp->timeInc(1);
+}
+
+void tick_until_commit() {
+  while (!(stop || commit)) {
+    tick();
+  }
+  stop = false;
+  commit = false;
 }
 
 // 复位拉高，将时钟滴答十次，再将复位拉低
@@ -175,10 +195,10 @@ void assert_fail_msg() {
 void npc_sync() {
   auto *r = top->rootp;
   npc.pc = r->top__DOT__pc__DOT__pcReg;
-  npc.mepc = r->top__DOT__csr__DOT__mepc;
-  npc.mstatus = r->top__DOT__csr__DOT__mstatus;
-  npc.mcause = r->top__DOT__csr__DOT__mcause;
-  npc.mtvec = r->top__DOT__csr__DOT__mtvec;
+  npc.mepc = r->top__DOT__csrs__DOT__mepc;
+  npc.mstatus = r->top__DOT__csrs__DOT__mstatus;
+  npc.mcause = r->top__DOT__csrs__DOT__mcause;
+  npc.mtvec = r->top__DOT__csrs__DOT__mtvec;
 
   npc.gpr[0] = r->top__DOT__regs__DOT__regs_0;
   npc.gpr[1] = r->top__DOT__regs__DOT__regs_1;
@@ -222,7 +242,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
 
   s->isa.inst = paddr_read(pc & ~(0b11), 4);
 
-  tick();
+  tick_until_commit();
   npc_sync();
 
   s->dnpc = npc.pc;
