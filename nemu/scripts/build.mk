@@ -55,3 +55,6 @@ $(BINARY):: $(OBJS) $(ARCHIVES)
 
 clean:
 	-rm -rf $(BUILD_DIR)
+
+test:
+	$(info $(ARGS_DIFF) )
