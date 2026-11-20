@@ -2,6 +2,48 @@ package elaborate
 import chisel3._
 import chisel3.util._
 
+object DEBUG {
+  val debug: Boolean = true
+  val simulator: Boolean = true
+}
+
+object RESP {
+  val OKAY    = "b00".U(2.W)
+  val EXOKAY  = "b01".U(2.W)
+  val SLVERR  = "b10".U(2.W)
+  val DECERR  = "b11".U(2.W)
+}
+
+class axi4Lite extends Bundle {
+  val AR         = new Bundle {
+    val arAddr   = Output(UInt(32.W))
+    val arValid  = Output(Bool())
+    val arReady  = Input(Bool())
+  }
+  val R          = new Bundle {
+    val rData    = Input(UInt(32.W))
+    val rResp    = Input(UInt(2.W))
+    val rValid   = Input(Bool())
+    val rReady   = Output(Bool())
+  }
+  val AW         = new Bundle {
+    val awAddr   = Output(UInt(32.W))
+    val awValid  = Output(Bool())
+    val awReady  = Input(Bool())
+  }
+  val W          = new Bundle {
+    val wData    = Output(UInt(32.W))
+    val wStrb    = Output(UInt(4.W))
+    val wValid   = Output(Bool())
+    val wReady   = Input(Bool())
+  }
+  val B          = new Bundle {
+    val bResp    = Input(UInt(2.W))
+    val bValid   = Input(Bool())
+    val bReady   = Output(Bool())
+  }
+}
+
 class simpleBus extends Bundle {
   val reqValid   = Output(Bool())
   val reqReady   = Input(Bool())
@@ -38,8 +80,8 @@ class ExuToLsuPort extends LsuToWbuPort {
   val memRdEn       = Output(Bool())
   val memWrEn       = Output(Bool())
   val memWrData     = Output(UInt(32.W))
-  val memLen        = Output(LsuByteLen())
-  val memSign       = Output(LsuSign())
+  val memLen        = Output(UInt(2.W))
+  val memSign       = Output(Bool())  
 }
 
 class LsuToWbuPort extends Bundle {
@@ -95,10 +137,13 @@ class CsrsToIduPort extends Bundle {
   val rData         = Output(UInt(32.W))
 }
 
-object LsuByteLen extends ChiselEnum {
-  val one, two, four = Value
+object LsuByteLen {
+  val one = 0.U(2.W)
+  val two = 1.U(2.W)
+  val four= 2.U(2.W)
 }
 
-object LsuSign extends ChiselEnum {
-  val signed, unsigned = Value
+object LsuSign {
+  val unsigned = false.B
+  val signed   = true.B
 }

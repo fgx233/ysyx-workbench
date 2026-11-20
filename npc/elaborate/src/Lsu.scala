@@ -1,19 +1,24 @@
 package elaborate
 import chisel3._
 import chisel3.util._
-import os.stat
+import chisel3.experimental.dataview.DataViewable
+
 
 /* 
 功能：将Exu传入的信息进一步处理，若有读写任务，则进行读写任务，若无读写任务，直接传递信息到Wbu。
+状态：
+1、等待EXU valid
+2、接收EXU传递的信息
+3、向ram发出读写请求
+4、接收ram的回应
+5、等待WBU的ready
  */
 
 object Lsu {
   object State extends ChiselEnum {
     val sLsuReady, sJudge,
-        sReadReqValid, sReadRespReady, 
-        sWriteReqValid, sWriteRespReady, 
-        sReadReqValid1, sReadRespReady1, sReadReqValid2, sReadRespReady2, 
-        sWriteReqValid1, sWriteRespReady1, sWriteReqValid2, sWriteRespReady2, 
+        sReadAddrValid, sReadDataReady,
+        sWriteAddrAndDataValid, sWaitAddrReady, sWaitDataReady, sWriteRespReady,
         sLsuValid = Value
   }
 }
@@ -22,11 +27,12 @@ class Lsu extends Module {
   import Lsu.State._
   import LsuByteLen._
   import LsuSign._
+  import RESP._
 
   val io = IO(new Bundle {
     val in = Flipped(Decoupled(new ExuToLsuPort))
     val out= Decoupled(new LsuToWbuPort)
-    val ram= new simpleBus 
+    val ram= new axi4Lite 
   })
 
   val state = RegInit(sLsuReady)
@@ -35,8 +41,8 @@ class Lsu extends Module {
   val memRdEn   = Reg(Bool())
   val memWrEn   = Reg(Bool())
   val memWrData = Reg(UInt(32.W))
-  val memLen    = Reg(LsuByteLen())
-  val memSign   = Reg(LsuSign())
+  val memLen    = Reg(UInt(2.W))
+  val memSign   = Reg(Bool())
 
   val regsWaddr = Reg(UInt(4.W))
   val regsWdata = Reg(UInt(32.W))
@@ -52,118 +58,51 @@ class Lsu extends Module {
   val isEcall   = Reg(Bool())
   val isMret    = Reg(Bool())
 
-  val rData1    = Reg(UInt(32.W))
-  val rData2    = Reg(UInt(32.W))
+  val rData     = Reg(UInt(32.W))
+  val rResp     = RegInit(OKAY)
+  val bResp     = RegInit(OKAY)
 
-  //reqValid
-  io.ram.reqValid := (state === sReadReqValid) || (state === sWriteReqValid) ||
-                     (state === sReadReqValid1) || (state === sWriteReqValid1) ||
-                     (state === sReadReqValid2) || (state === sWriteReqValid2) 
-  //addr
-  val len         = MuxLookup(memLen, 0.U(32.W))(Seq(
-    one           -> 1.U(32.W),
-    two           -> 2.U(32.W),
-    four          -> 4.U(32.W)
-  ))
-  val lowAddr   = memAddr & 0b11.U(32.W)
-  val oneStep   = ((lowAddr + len) <= 4.U(32.W))
-  when (oneStep) {
-    io.ram.addr := memAddr(31,2) ## 0.U(2.W)
-  }.elsewhen (state === sReadReqValid1 || state === sWriteReqValid1) {
-    io.ram.addr := memAddr(31,2) ## 0.U(2.W)
-  }.otherwise {
-    io.ram.addr := (memAddr(31,2) ## 0.U(2.W)) + 4.U(32.W)
+  io.in.ready := state === sLsuReady
+  io.out.valid := state === sLsuValid
+
+  // AR
+  io.ram.AR.arAddr := memAddr(31,2) ## "b00".U(2.W)
+  io.ram.AR.arValid := state === sReadAddrValid
+  // R
+  when (io.ram.R.rValid && io.ram.R.rReady) {
+    rData := io.ram.R.rData
+    rResp := io.ram.R.rResp
   }
-  //wEn
-  io.ram.wEn      := memWrEn
-  //wData
-  when (memLen === one) {
-    io.ram.wData := Fill(4, memWrData(7,0))
+  io.ram.R.rReady := state === sReadDataReady
+  // AW
+  io.ram.AW.awAddr := memAddr(31,2) ## "b00".U(2.W)
+  io.ram.AW.awValid := state === sWriteAddrAndDataValid || state === sWaitAddrReady
+  // W
+  when (memLen === four) {
+    io.ram.W.wData := memWrData
   }.elsewhen (memLen === two) {
-    when (oneStep) {
-      when (lowAddr === 0.U(32.W) || lowAddr === 2.U(32.W)) {
-        io.ram.wData := Fill(2, memWrData(15,0))
-      }.otherwise {
-        io.ram.wData := 0.U(8.W) ## memWrData(15,0) ## 0.U(8.W)
-      }
-    }.otherwise {
-      when (state === sWriteReqValid1) {
-        io.ram.wData := memWrData(7,0) ## 0.U(24.W)
-      }.otherwise {
-        io.ram.wData := 0.U(24.W) ## memWrData(15,8)
-      }
-    }
+    io.ram.W.wData := Fill(2, memWrData(15,0))
   }.otherwise {
-    when (oneStep) {
-      io.ram.wData := memWrData
-    }.otherwise {
-      when (state === sWriteReqValid1) {
-        when (lowAddr === 1.U(32.W)) {
-          io.ram.wData := memWrData(23,0) ## 0.U(8.W)
-        }.elsewhen (lowAddr === 2.U(32.W)) {
-          io.ram.wData := memWrData(15,0) ## 0.U(16.W)
-        }.otherwise {
-          io.ram.wData := memWrData(7,0) ## 0.U(24.W)
-        }
-      }.otherwise {
-        when (lowAddr === 1.U(32.W)) {
-          io.ram.wData := 0.U(24.W) ## memWrData(31,24)
-        }.elsewhen (lowAddr === 2.U(32.W)) {
-          io.ram.wData := 0.U(16.W) ## memWrData(31,16)
-        }.otherwise {
-          io.ram.wData := 0.U(8.W) ## memWrData(31,8)
-        }
-      }
-    }
+    io.ram.W.wData := Fill(4, memWrData(7,0))
   }
-  //wMask
-  when (memLen === one) {
-    io.ram.wMask := MuxLookup(lowAddr, 0.U(4.W))(Seq(
-      0.U(32.W)  -> 0b0001.U(4.W),
-      1.U(32.W)  -> 0b0010.U(4.W),
-      2.U(32.W)  -> 0b0100.U(4.W),
-      3.U(32.W)  -> 0b1000.U(4.W)
+  when (memLen === four) {
+    io.ram.W.wStrb := "b1111".U(4.W)
+  }.elsewhen (memLen === two) {
+    io.ram.W.wStrb := Mux(memAddr(1,0) === "b00".U(2.W), "b0011".U(4.W), "b1100".U(4.W))
+  }.otherwise {
+    io.ram.W.wStrb := MuxLookup(memAddr(1,0), "b0001".U(4.W))(Seq(
+      "b00".U(2.W) -> "b0001".U(4.W),
+      "b01".U(2.W) -> "b0010".U(4.W),
+      "b10".U(2.W) -> "b0100".U(4.W),
+      "b11".U(2.W) -> "b1000".U(4.W)
     ))
-  }.elsewhen (memLen === two) {
-    when (oneStep) {
-      io.ram.wMask := MuxLookup(lowAddr, 0.U(4.W))(Seq(
-        0.U(32.W)  -> 0b0011.U(4.W),
-        1.U(32.W)  -> 0b0110.U(4.W),
-        2.U(32.W)  -> 0b1100.U(4.W)
-      ))
-    }.otherwise {
-      io.ram.wMask := Mux(state === sWriteReqValid1, 0b1000.U(4.W), 0b0001.U(4.W))
-    }
-  }.otherwise {
-    when (oneStep) {
-      io.ram.wMask := 0b1111.U(4.W)
-    }.otherwise {
-      when (state === sWriteReqValid1) {
-        io.ram.wMask := MuxLookup(lowAddr, 0.U(4.W))(Seq(
-          1.U(32.W)  -> 0b1110.U(4.W),
-          2.U(32.W)  -> 0b1100.U(4.W),
-          3.U(32.W)  -> 0b1000.U(4.W)
-        ))
-      }.otherwise {
-        io.ram.wMask := MuxLookup(lowAddr, 0.U(4.W))(Seq(
-          1.U(32.W)  -> 0b0001.U(4.W),
-          2.U(32.W)  -> 0b0011.U(4.W),
-          3.U(32.W)  -> 0b0111.U(4.W)
-        ))
-      }
-    }
   }
-  //respReady
-  io.ram.respReady := (state === sReadRespReady || state === sWriteRespReady ||
-                       state === sReadRespReady1 || state === sWriteRespReady1 ||
-                       state === sReadRespReady2 || state === sWriteRespReady2)
-  //rData
-  when ((state === sReadRespReady || state === sReadRespReady1) && (io.ram.respValid && io.ram.respReady)) {
-    rData1 := io.ram.rData
+  io.ram.W.wValid := state === sWriteAddrAndDataValid || state === sWaitDataReady
+  // B
+  when (io.ram.B.bValid && io.ram.B.bReady) {
+    bResp := io.ram.B.bResp
   }
-  when ((state === sReadRespReady2) && (io.ram.respValid && io.ram.respReady)) {
-    rData2 := io.ram.rData
-  }
+  io.ram.B.bReady := state === sWriteRespReady
 
   when (io.in.valid && io.in.ready) {
     memAddr   := io.in.bits.memAddr  
@@ -188,72 +127,49 @@ class Lsu extends Module {
     isMret    := io.in.bits.isMret   
   }
 
-  io.out.bits.regsWaddr := regsWaddr
-
-  when (memRdEn) {
-    when (oneStep) {
-      when (memLen === one) {
-        when (memSign === signed) {
-          io.out.bits.regsWdata := MuxLookup(lowAddr, 0.U(32.W))(Seq(
-            0.U(32.W)           -> rData1(7,0).asSInt.pad(32).asUInt,
-            1.U(32.W)           -> rData1(15,8).asSInt.pad(32).asUInt,
-            2.U(32.W)           -> rData1(23,16).asSInt.pad(32).asUInt,
-            3.U(32.W)           -> rData1(31,24).asSInt.pad(32).asUInt
-          ))
-        }.otherwise {
-          io.out.bits.regsWdata := MuxLookup(lowAddr, 0.U(32.W))(Seq(
-            0.U(32.W)           -> rData1(7,0).pad(32),
-            1.U(32.W)           -> rData1(15,8).pad(32),
-            2.U(32.W)           -> rData1(23,16).pad(32),
-            3.U(32.W)           -> rData1(31,24).pad(32)
-          ))
-        }
+    io.out.bits.regsWaddr := regsWaddr
+    io.out.bits.regsWdata := regsWdata
+    when (memRdEn) {
+      when (memLen === four) {
+        io.out.bits.regsWdata := rData
       }.elsewhen (memLen === two) {
-        when (memSign === signed) {
-          io.out.bits.regsWdata := MuxLookup(lowAddr, 0.U(32.W))(Seq(
-            0.U(32.W)           -> rData1(15,0).asSInt.pad(32).asUInt,
-            1.U(32.W)           -> rData1(23,8).asSInt.pad(32).asUInt,
-            2.U(32.W)           -> rData1(31,16).asSInt.pad(32).asUInt
-          ))
+        when (memSign === unsigned) {
+          io.out.bits.regsWdata := Mux(memAddr(1,0) === "b00".U(2.W), rData(15,0).pad(32), rData(31,16).pad(32))
         }.otherwise {
-          io.out.bits.regsWdata := MuxLookup(lowAddr, 0.U(32.W))(Seq(
-            0.U(32.W)           -> rData1(15,0).pad(32),
-            1.U(32.W)           -> rData1(23,8).pad(32),
-            2.U(32.W)           -> rData1(31,16).pad(32)
-          ))
+          io.out.bits.regsWdata := Mux(memAddr(1,0) === "b00".U(2.W), rData(15,0).asSInt.pad(32).asUInt, rData(31,16).asSInt.pad(32).asUInt)
         }
       }.otherwise {
-        io.out.bits.regsWdata := rData1
+        when (memSign === unsigned) {
+          io.out.bits.regsWdata := MuxLookup(memAddr(1,0), rData(7,0).pad(32))(Seq(
+            "b00".U(2.W)  -> rData(7,0).pad(32),
+            "b01".U(2.W)  -> rData(15,8).pad(32),
+            "b10".U(2.W)  -> rData(23,16).pad(32),
+            "b11".U(2.W)  -> rData(31,24).pad(32)
+          ))
+        }.otherwise {
+          io.out.bits.regsWdata := MuxLookup(memAddr(1,0), rData(7,0).pad(32))(Seq(
+            "b00".U(2.W)  -> rData(7,0).asSInt.pad(32).asUInt,
+            "b01".U(2.W)  -> rData(15,8).asSInt.pad(32).asUInt,
+            "b10".U(2.W)  -> rData(23,16).asSInt.pad(32).asUInt,
+            "b11".U(2.W)  -> rData(31,24).asSInt.pad(32).asUInt
+          ))
+        }
       }
     }.otherwise {
-      when (memLen === two) {
-        io.out.bits.regsWdata := Mux(memSign === signed,
-                                     (rData2(7,0) ## rData1(31,24)).asSInt.pad(32).asUInt,
-                                     (rData2(7,0) ## rData1(31,24)).pad(32))
-      }.otherwise {
-        io.out.bits.regsWdata := MuxLookup(lowAddr, 0.U(32.W))(Seq(
-          1.U(32.W)           -> rData2(7,0) ## rData1(31,8),
-          2.U(32.W)           -> rData2(15,0) ## rData1(31,16),
-          3.U(32.W)           -> rData2(23,0) ## rData1(31,24),
-        ))
-      }
+      io.out.bits.regsWdata := regsWdata
     }
-  }.otherwise {
-    io.out.bits.regsWdata := regsWdata
-  }
+    io.out.bits.regsWen   := regsWen  
 
-  io.out.bits.regsWen   := regsWen  
-  io.out.bits.pcWdata   := pcWdata  
-  io.out.bits.pcWen     := pcWen    
-  io.out.bits.csrWaddr  := csrWaddr 
-  io.out.bits.csrWdata  := csrWdata 
-  io.out.bits.csrWen    := csrWen   
-  io.out.bits.isEcall   := isEcall  
-  io.out.bits.isMret    := isMret   
+    io.out.bits.pcWdata   := pcWdata  
+    io.out.bits.pcWen     := pcWen    
 
-  io.in.ready  := state === sLsuReady
-  io.out.valid := state === sLsuValid
+    io.out.bits.csrWaddr  := csrWaddr 
+    io.out.bits.csrWdata  := csrWdata 
+    io.out.bits.csrWen    := csrWen   
 
+    io.out.bits.isEcall   := isEcall  
+    io.out.bits.isMret    := isMret   
+  
   switch (state) {
     is (sLsuReady) {
       when (io.in.valid && io.in.ready) {
@@ -261,73 +177,45 @@ class Lsu extends Module {
       }
     }
     is (sJudge) {
-      when (memRdEn || memWrEn) {
-        when (oneStep) {
-          state := Mux(memRdEn, sReadReqValid, sWriteReqValid)
-        }.otherwise {
-          state := Mux(memRdEn, sReadReqValid1, sWriteReqValid1)
-        }
+      when (memRdEn) {
+        state := sReadAddrValid
+      }.elsewhen (memWrEn) {
+        state := sWriteAddrAndDataValid
       }.otherwise {
         state := sLsuValid
       }
     }
-    is (sReadReqValid) {
-      when (io.ram.reqValid && io.ram.reqReady) {
-        state := sReadRespReady
+    is (sReadAddrValid) {
+      when (io.ram.AR.arValid && io.ram.AR.arReady) {
+        state := sReadDataReady
       }
     }
-    is (sReadRespReady) {
-      when (io.ram.respValid && io.ram.respReady) {
+    is (sReadDataReady) {
+      when (io.ram.R.rValid && io.ram.R.rReady) {
         state := sLsuValid
       }
     }
-    is (sWriteReqValid) {
-      when (io.ram.reqValid && io.ram.reqReady) {
+    is (sWriteAddrAndDataValid) {
+      when (io.ram.AW.awValid && io.ram.AW.awReady && io.ram.W.wValid && io.ram.W.wReady) {
+        state := sWriteRespReady
+      }.elsewhen (io.ram.AW.awValid && io.ram.AW.awReady) {
+        state := sWaitDataReady
+      }.elsewhen (io.ram.W.wValid && io.ram.W.wReady) {
+        state := sWaitAddrReady
+      }
+    }
+    is (sWaitDataReady) {
+      when (io.ram.W.wValid && io.ram.W.wReady) {
+        state := sWriteRespReady
+      }
+    }
+    is (sWaitAddrReady) {
+      when (io.ram.AW.awValid && io.ram.AW.awReady) {
         state := sWriteRespReady
       }
     }
     is (sWriteRespReady) {
-      when (io.ram.respValid && io.ram.respReady) {
-        state := sLsuValid
-      }
-    }
-    is (sReadReqValid1) {
-      when (io.ram.reqValid && io.ram.reqReady) {
-        state := sReadRespReady1
-      }
-    }
-    is (sReadRespReady1) {
-      when (io.ram.respValid && io.ram.respReady) {
-        state := sReadReqValid2
-      }
-    }
-    is (sReadReqValid2) {
-      when (io.ram.reqValid && io.ram.reqReady) {
-        state := sReadRespReady2
-      }
-    }
-    is (sReadRespReady2) {
-      when (io.ram.respValid && io.ram.respReady) {
-        state := sLsuValid
-      }
-    }
-    is (sWriteReqValid1) {
-      when (io.ram.reqValid && io.ram.reqReady) {
-        state := sWriteRespReady1
-      }
-    }
-    is (sWriteRespReady1) {
-      when (io.ram.respValid && io.ram.respReady) {
-        state := sWriteReqValid2
-      }
-    }
-    is (sWriteReqValid2) {
-      when (io.ram.reqValid && io.ram.reqReady) {
-        state := sWriteRespReady2
-      }
-    }
-    is (sWriteRespReady2) {
-      when (io.ram.respValid && io.ram.respReady) {
+      when (io.ram.B.bValid && io.ram.B.bReady) {
         state := sLsuValid
       }
     }
@@ -337,4 +225,14 @@ class Lsu extends Module {
       }
     }
   }
+
+  if (DEBUG.debug) {
+    // 检测AXI读写时是否出现错误
+    assert(rResp === OKAY, "rResp = %b", rResp)
+    assert(bResp === OKAY, "bResp = %b", bResp)
+    // 检测是否出现不支持的访存行为
+    assert(!((memAddr(1,0) === "b01".U(2.W) || memAddr(1,0) === "b11".U(2.W)) && memLen === two && (memRdEn || memWrEn)), "lh/lhu/sh inst has unsupport behavior")
+    assert(!((memRdEn || memWrEn) && memLen === four && memAddr(1,0) =/= "b00".U(2.W)), "lw/sw inst has unsupport behavior")
+  }
+  
 }

@@ -1,6 +1,7 @@
 package elaborate
 import chisel3._
 import chisel3.util._
+import chisel3.util.circt.dpi.RawClockedVoidFunctionCall
 
 /* 
 功能：接收ifu取出来的指令，根据这条指令，给出指导ISA状态机跳转的次态信息，把这些信息打包传给exu
@@ -24,7 +25,6 @@ class Idu extends Module {
     val csrs = Flipped(new CsrsToIduPort)
     val in = Flipped(Decoupled(new IfuToIduPort))
     val out = Decoupled(new IduToExuPort)
-    val monitor = new IduToMonitorPort
   })
 
   val inst = Reg(UInt(32.W))
@@ -285,9 +285,14 @@ class Idu extends Module {
   io.out.bits.isMret      := isMret
 
   //isEbreak,isInvalid
-  io.monitor.pc           := io.pc
-  io.monitor.isEbreak     := Mux(state === sWaitReady, isEbreak, false.B)
-  io.monitor.isInvalid    := Mux(state === sWaitReady, isInvalid, false.B)
+  RawClockedVoidFunctionCall(
+    "ebreak",
+    Some(Seq("pc"))
+    )(clock, Mux(state === sWaitReady, isEbreak, false.B), io.pc)
+  RawClockedVoidFunctionCall(
+    "inv",
+    Some(Seq("pc"))
+    )(clock, Mux(state === sWaitReady, isInvalid, false.B), io.pc)
 
   when (io.in.valid && io.in.ready) {
     inst := io.in.bits.inst

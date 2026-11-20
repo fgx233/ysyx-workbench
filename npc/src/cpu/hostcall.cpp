@@ -3,6 +3,8 @@
 #include "cpu.hpp"
 #include "Vtop__Dpi.h"
 
+extern "C" void vaddr_ifetch(int inst_addr, int *inst);
+
 extern "C" void inst_commit() {
   set_commit();
 }

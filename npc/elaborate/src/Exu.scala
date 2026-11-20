@@ -70,8 +70,8 @@ class Exu extends Module {
   val memRdEn   = Reg(Bool())
   val memWrEn   = Reg(Bool())
   val memWrData = Reg(UInt(32.W))
-  val memLen    = Reg(LsuByteLen())
-  val memSign   = Reg(LsuSign())
+  val memLen    = Reg(UInt(2.W))
+  val memSign   = Reg(Bool())
 
   val regsWaddr = Reg(UInt(4.W))
   val regsWdata = Reg(UInt(32.W))

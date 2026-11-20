@@ -107,4 +107,4 @@ include $(NPC_HOME)/scripts/native.mk
 
 
 test:
-	$(info $(LIBS))
+	$(info $(VERILATOR_FLAGS))

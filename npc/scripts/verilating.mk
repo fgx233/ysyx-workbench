@@ -1,7 +1,9 @@
 TOPNAME = top
 VERILATOR_PATH = /home/fgx/work/oss-cad-suite-linux-x64-20261111/oss-cad-suite/share/verilator/include
-VERILATOR_FLAGS = --cc --build -O3 --x-assign fast --x-initial fast --noassert --trace-fst
-
+VERILATOR_FLAGS = --cc --build -O3 --x-assign fast --x-initial fast  --trace-fst
+ifndef CONFIG_Assert
+VERILATOR_FLAGS += --noassert
+endif
 
 RTLS = $(shell find elaborate/src -name "*.scala")
 VSRC_DIR = vsrc

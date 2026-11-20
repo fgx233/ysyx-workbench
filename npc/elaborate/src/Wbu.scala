@@ -1,6 +1,7 @@
 package elaborate
 import chisel3._
 import chisel3.util._
+import chisel3.util.circt.dpi.RawClockedVoidFunctionCall
 
 object Wbu {
   object State extends ChiselEnum {
@@ -17,7 +18,6 @@ class Wbu extends Module {
     val regs    = new WbuToRegsPort
     val csrs    = new WbuToCsrsPort
     val out     = Decoupled(new WbuToIfuPort)
-    val commit  = Output(Bool())
   })
 
   val state         = RegInit(sWbuReady)
@@ -62,7 +62,6 @@ class Wbu extends Module {
 
   io.in.ready := state === sWbuReady
   io.out.valid := state === sWbuValid
-  io.commit := io.out.valid && io.out.ready
 
   switch (state) {
     is (sWbuReady) {
@@ -78,5 +77,9 @@ class Wbu extends Module {
         state := sWbuReady
       }
     }
+  }
+
+  if (DEBUG.simulator) {
+    RawClockedVoidFunctionCall("inst_commit")(clock, io.out.valid && io.out.ready)
   }
 }
